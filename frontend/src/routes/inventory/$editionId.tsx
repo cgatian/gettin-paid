@@ -276,6 +276,14 @@ function EditionDetail() {
 	);
 	const [sellError, setSellError] = useState<string | null>(null);
 
+	const [editCopyId, setEditCopyId] = useState<string | null>(null);
+	const [editClassification, setEditClassification] =
+		useState<CopyClassification>(CopyClassification.CIB);
+	const [editNotes, setEditNotes] = useState("");
+	const [editOfferAmount, setEditOfferAmount] = useState("");
+	const [editOfferCurrency, setEditOfferCurrency] = useState("USD");
+	const [editCopyError, setEditCopyError] = useState<string | null>(null);
+
 	const q = useQuery({
 		queryKey: ["edition", editionId],
 		queryFn: () => apiFetch<EditionDetailDto>(`/editions/${editionId}`),
@@ -317,6 +325,8 @@ function EditionDetail() {
 	});
 
 	function openSellModal(c: OwnedCopyDto) {
+		setEditCopyId(null);
+		setEditCopyError(null);
 		setSellCopyId(c.id);
 		setSellAmount(c.soldAmount ?? "");
 		setSellCurrency((c.soldCurrency ?? "USD").trim().slice(0, 3) || "USD");
@@ -332,6 +342,57 @@ function EditionDetail() {
 		setSellCopyId(null);
 		setSellError(null);
 	}
+
+	function openEditCopyModal(c: OwnedCopyDto) {
+		setSellCopyId(null);
+		setSellError(null);
+		setEditCopyId(c.id);
+		setEditClassification(c.copyClassification);
+		setEditNotes(c.classificationNotes ?? "");
+		setEditOfferAmount(c.offerAmount ?? "");
+		setEditOfferCurrency(
+			(c.offerCurrency ?? "USD").trim().slice(0, 3) || "USD",
+		);
+		setEditCopyError(null);
+	}
+
+	function closeEditCopyModal() {
+		setEditCopyId(null);
+		setEditCopyError(null);
+	}
+
+	const updateCopyMeta = useMutation({
+		mutationFn: async () => {
+			const id = editCopyId;
+			if (!id) throw new Error("No copy selected");
+			const trimmedOffer = editOfferAmount.trim();
+			const body: Record<string, unknown> = {
+				copyClassification: editClassification,
+				classificationNotes: editNotes.trim() || null,
+			};
+			if (trimmedOffer) {
+				body.offerAmount = trimmedOffer;
+				body.offerCurrency = editOfferCurrency.trim().slice(0, 3) || "USD";
+			} else {
+				body.offerAmount = null;
+				body.offerCurrency = null;
+			}
+			return apiFetch<OwnedCopyDto>(`/copies/${id}`, {
+				method: "PATCH",
+				body: JSON.stringify(body),
+			});
+		},
+		onSuccess: () => {
+			closeEditCopyModal();
+			void q.refetch();
+			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+		},
+		onError: (e) => {
+			setEditCopyError(
+				e instanceof Error ? e.message : "Could not update copy",
+			);
+		},
+	});
 
 	const markSold = useMutation({
 		mutationFn: async () => {
@@ -375,6 +436,17 @@ function EditionDetail() {
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
 	}, [sellCopyId]);
+
+	useEffect(() => {
+		if (!editCopyId) return;
+		const onKey = (ev: KeyboardEvent) => {
+			if (ev.key === "Escape" && !updateCopyMeta.isPending) {
+				closeEditCopyModal();
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [editCopyId, updateCopyMeta.isPending]);
 
 	const deleteGame = useMutation({
 		mutationFn: () =>
@@ -424,6 +496,8 @@ function EditionDetail() {
 	const snap = e.snapshot;
 	const sellingCopy =
 		sellCopyId !== null ? e.copies.find((c) => c.id === sellCopyId) : undefined;
+	const editingCopy =
+		editCopyId !== null ? e.copies.find((c) => c.id === editCopyId) : undefined;
 
 	return (
 		<div className={pageClass}>
@@ -598,17 +672,32 @@ function EditionDetail() {
 													</p>
 												)}
 											</div>
-											<Button
-												type="button"
-												variant="secondary"
-												size="sm"
+											<div
 												className={css({
+													display: "flex",
+													flexDir: { base: "column", sm: "row" },
+													gap: "2",
 													alignSelf: { base: "stretch", sm: "auto" },
+													flexShrink: 0,
 												})}
-												onClick={() => openSellModal(c)}
 											>
-												{c.soldAt != null ? "Edit sale" : "Mark sold"}
-											</Button>
+												<Button
+													type="button"
+													variant="secondary"
+													size="sm"
+													onClick={() => openEditCopyModal(c)}
+												>
+													Edit copy
+												</Button>
+												<Button
+													type="button"
+													variant="secondary"
+													size="sm"
+													onClick={() => openSellModal(c)}
+												>
+													{c.soldAt != null ? "Edit sale" : "Mark sold"}
+												</Button>
+											</div>
 										</div>
 									</li>
 								))}
@@ -666,6 +755,162 @@ function EditionDetail() {
 					</div>
 				</Card>
 			</div>
+
+			{editCopyId !== null && (
+				<div
+					className={overlayClass}
+					role="presentation"
+					onClick={(ev) => {
+						if (ev.target === ev.currentTarget && !updateCopyMeta.isPending) {
+							closeEditCopyModal();
+						}
+					}}
+				>
+					<div
+						className={cx(
+							modalPanelClass,
+							css({ maxWidth: "460px" }),
+						)}
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="edit-copy-dialog-title"
+						onClick={(ev) => ev.stopPropagation()}
+					>
+						<h2 id="edit-copy-dialog-title" className={modalTitleClass}>
+							Edit copy
+							{editingCopy && (
+								<span
+									className={css({
+										display: "block",
+										fontSize: "xs",
+										fontWeight: "normal",
+										color: "foregroundMuted",
+										mt: "1",
+									})}
+								>
+									{e.title}
+								</span>
+							)}
+						</h2>
+						<form
+							onSubmit={(ev) => {
+								ev.preventDefault();
+								setEditCopyError(null);
+								updateCopyMeta.mutate();
+							}}
+						>
+							{editCopyError && (
+								<p className={errorBannerClass}>{editCopyError}</p>
+							)}
+							<div
+								className={css({
+									display: "flex",
+									flexDir: "column",
+									gap: "3",
+								})}
+							>
+								<div>
+									<Label htmlFor="edit-classification">Classification</Label>
+									<Select
+										id="edit-classification"
+										value={editClassification}
+										onChange={(ev) =>
+											setEditClassification(
+												ev.target.value as CopyClassification,
+											)
+										}
+									>
+										{CLASSIFICATION_OPTIONS.map((x) => (
+											<option key={x} value={x}>
+												{x.replace(/_/g, " ")}
+											</option>
+										))}
+									</Select>
+								</div>
+								<div>
+									<Label htmlFor="edit-notes">Notes (optional)</Label>
+									<input
+										id="edit-notes"
+										type="text"
+										value={editNotes}
+										onChange={(ev) => setEditNotes(ev.target.value)}
+										placeholder="e.g. mild box wear"
+										className={textInputClass}
+									/>
+								</div>
+								<div>
+									<Label htmlFor="edit-offer-amt">
+										Offer / asking price (optional)
+									</Label>
+									<div
+										className={css({
+											display: "flex",
+											gap: "2",
+											alignItems: "stretch",
+										})}
+									>
+										<input
+											id="edit-offer-amt"
+											type="text"
+											inputMode="decimal"
+											autoComplete="off"
+											value={editOfferAmount}
+											onChange={(ev) => setEditOfferAmount(ev.target.value)}
+											placeholder="0.00"
+											className={cx(textInputClass, css({ flex: "1", minW: 0 }))}
+										/>
+										<input
+											id="edit-offer-ccy"
+											type="text"
+											maxLength={3}
+											autoComplete="off"
+											value={editOfferCurrency}
+											onChange={(ev) =>
+												setEditOfferCurrency(
+													ev.target.value.toUpperCase().slice(0, 3),
+												)
+											}
+											placeholder="USD"
+											aria-label="Offer currency"
+											className={cx(
+												textInputClass,
+												css({ width: "76px", flexShrink: 0 }),
+											)}
+										/>
+									</div>
+									<p
+										className={css({
+											fontSize: "xs",
+											color: "foregroundMuted",
+											mt: "1",
+											mb: "0",
+										})}
+									>
+										Leave amount empty to remove a proposed price.
+									</p>
+								</div>
+							</div>
+							<div className={modalActionsClass}>
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => closeEditCopyModal()}
+									disabled={updateCopyMeta.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									variant="primary"
+									disabled={updateCopyMeta.isPending}
+								>
+									{updateCopyMeta.isPending ? "Saving…" : "Save changes"}
+								</Button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
 
 			{sellCopyId !== null && (
 				<div
