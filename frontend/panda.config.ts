@@ -30,6 +30,7 @@ export default defineConfig({
         accent: { value: '#853BCE' },
         accentHover: { value: '#6e28b5' },
         accentGreen: { value: '#42946E' },
+        accentGreenHover: { value: '#357a5a' },
         navActive: { value: 'rgba(255,255,255,0.06)' },
         navHover: { value: 'rgba(255,255,255,0.04)' },
         danger: { value: '#c0392b' },

@@ -33,9 +33,18 @@ const pageTitleClass = css({
 
 const gridClass = css({
 	display: "grid",
-	gridTemplateColumns: { base: "1fr", lg: "1fr 1fr" },
+	gridTemplateColumns: {
+		base: "1fr",
+		lg: "1fr 1fr",
+		xl: "repeat(3, minmax(0, 1fr))",
+	},
 	gap: "6",
 	alignItems: "start",
+});
+
+const proposedCardGridClass = css({
+	lg: { gridColumn: "1 / -1" },
+	xl: { gridColumn: "auto" },
 });
 
 const cardTitleClass = css({
@@ -184,6 +193,22 @@ function DashboardPage() {
 								classification, or empty column).
 							</>
 						)}
+					</p>
+				</Card>
+
+				<Card className={cx(css({ p: "5" }), proposedCardGridClass)}>
+					<h2 className={cardTitleClass}>Estimated selling value</h2>
+					<p className={bigNumberClass}>
+						{formatPcCents(d.proposedTotalUsdCents ?? 0)}
+					</p>
+					<p className={supportingClass}>
+						Sum of proposed asking prices on active (unsold) copies. Only USD
+						offers are included (blank currency is treated as USD).
+					</p>
+					<p className={cx(supportingClass, css({ mt: "3" }))}>
+						{d.proposedOfferCopyCount ?? 0} active{" "}
+						{(d.proposedOfferCopyCount ?? 0) === 1 ? "copy" : "copies"} with a
+						USD proposed price.
 					</p>
 				</Card>
 			</div>

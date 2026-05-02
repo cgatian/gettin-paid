@@ -3,25 +3,107 @@ import {
 	type EditionDetailDto,
 	labelPriceChartingConsole,
 	type OwnedCopyDto,
+	type PriceChartingPricingPreviewDto,
 	priceChartingProductBrowseUrl,
+	snapshotFmvCentsForClassification,
 } from "@gettin-paid/shared";
 import { Dialog } from "@base-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { css, cx } from "styled-system/css";
 import { Badge } from "#/components/ui/Badge";
 import { Button } from "#/components/ui/Button";
-import { Card, cardBody, cardHeader } from "#/components/ui/Card";
-import { Label, Select } from "#/components/ui/Input";
+import { Card, cardBody, cardHeader, formGroupClass } from "#/components/ui/Card";
+import {
+	Field,
+	Input,
+	Label,
+	Select,
+	inputClass,
+} from "#/components/ui/Input";
 import { apiFetch } from "#/lib/api";
-import { formatPcCents } from "#/lib/money";
+import { formatMoneyAmount, formatPcCents } from "#/lib/money";
 
 export const Route = createFileRoute("/inventory/$editionId")({
 	component: EditionDetail,
 });
 
 const CLASSIFICATION_OPTIONS = Object.values(CopyClassification);
+
+/** Anchor cents for offer slider + autofill; aligns with Add game flow. */
+function baseOfferCentsPreview(
+	data: Pick<
+		PriceChartingPricingPreviewDto,
+		"loosePrice" | "cibPrice" | "newPrice" | "gradedPrice"
+	>,
+	classification: CopyClassification,
+): number | null {
+	const mapped = snapshotFmvCentsForClassification(data, classification);
+	if (mapped != null) return mapped;
+	return data.cibPrice ?? data.loosePrice ?? null;
+}
+
+function snapshotToPricingPreview(
+	s: NonNullable<EditionDetailDto["snapshot"]>,
+): Pick<
+	PriceChartingPricingPreviewDto,
+	| "productName"
+	| "consoleName"
+	| "loosePrice"
+	| "cibPrice"
+	| "newPrice"
+	| "gradedPrice"
+	| "salesVolume"
+> {
+	return {
+		productName: s.productName,
+		consoleName: s.consoleName,
+		loosePrice: s.loosePrice,
+		cibPrice: s.cibPrice,
+		newPrice: s.newPrice,
+		gradedPrice: s.gradedPrice,
+		salesVolume: s.salesVolume,
+	};
+}
+
+const priceDlClass = css({
+	display: "grid",
+	gridTemplateColumns: "auto 1fr",
+	columnGap: "4",
+	rowGap: "1",
+	fontSize: "sm",
+	margin: "0",
+});
+
+const priceDtClass = css({
+	color: "foregroundMuted",
+	fontWeight: "normal",
+	margin: "0",
+});
+const priceDdClass = css({ margin: "0", color: "foreground" });
+
+const mutedHelpClass = css({
+	color: "foregroundMuted",
+	fontSize: "xs",
+	mt: "1",
+	mb: "0",
+});
+
+const lowOfferWarningClass = css({
+	display: "block",
+	mt: "2",
+	mb: "0",
+	fontSize: "sm",
+	color: "foreground",
+	bg: "rgba(180, 120, 0, 0.08)",
+	borderWidth: "1px",
+	borderStyle: "solid",
+	borderColor: "rgba(180, 120, 0, 0.22)",
+	borderRadius: "btn",
+	px: "3",
+	py: "2",
+});
 
 function editionConsoleBadge(
 	e: Pick<
@@ -72,8 +154,8 @@ const metaTextClass = css({
 });
 
 const gridClass = css({
-	display: "grid",
-	gridTemplateColumns: { base: "1fr", md: "1fr 1fr" },
+	display: "flex",
+	flexDir: "column",
 	gap: "4",
 	mb: "4",
 });
@@ -92,8 +174,9 @@ const emptyTextClass = css({
 
 const dlClass = css({
 	display: "grid",
-	gridTemplateColumns: { base: "1fr", sm: "1fr 1fr" },
-	gap: "2",
+	gridTemplateColumns: "auto 1fr",
+	columnGap: "2",
+	rowGap: "1",
 	margin: "0",
 });
 
@@ -109,27 +192,82 @@ const ddClass = css({
 const fetchedAtClass = css({
 	fontSize: "xs",
 	color: "foregroundMuted",
-	mb: "3",
+	mb: "2",
 });
 
-const copyListClass = css({
-	listStyle: "none",
-	padding: "0",
-	margin: "0 0 16px 0",
-	display: "flex",
-	flexDir: "column",
-	gap: "2",
+const copiesTableScrollClass = css({
+	overflowX: "auto",
+	mb: "4",
 });
 
-const copyItemClass = css({
-	bg: "background",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "border",
-	borderRadius: "btn",
-	px: "3",
-	py: "2",
+const copiesTableMinClass = css({
+	minWidth: "640px",
+});
+
+const copiesGridCols =
+	"minmax(96px, 120px) minmax(72px, 96px) minmax(72px, 96px) minmax(100px, 140px) minmax(0, 1fr) auto";
+
+const copiesHeaderRowClass = css({
+	display: "grid",
+	gridTemplateColumns: copiesGridCols,
+	gap: "3",
+	alignItems: "center",
+	px: "2",
+	pb: "2",
+	mb: "2",
+	borderBottomWidth: "1px",
+	borderBottomStyle: "solid",
+	borderBottomColor: "border",
+	fontSize: "xs",
+	fontWeight: "medium",
+	color: "foregroundMuted",
+	textTransform: "uppercase",
+	letterSpacing: "0.05em",
+});
+
+const copyDataRowClass = css({
+	display: "grid",
+	gridTemplateColumns: copiesGridCols,
+	gap: "3",
+	alignItems: "center",
+	px: "2",
+	py: "3",
+	borderBottomWidth: "1px",
+	borderBottomStyle: "solid",
+	borderBottomColor: "borderSubtle",
 	fontSize: "sm",
+	"&:last-child": {
+		borderBottomWidth: "0",
+	},
+});
+
+const copyCellMutedClass = css({
+	fontSize: "sm",
+	color: "foregroundMuted",
+	fontVariantNumeric: "tabular-nums",
+});
+
+const copyCellClass = css({
+	fontSize: "sm",
+	color: "foreground",
+	fontVariantNumeric: "tabular-nums",
+});
+
+const copyNotesCellClass = css({
+	fontSize: "sm",
+	color: "foregroundMuted",
+	minWidth: "0",
+	overflow: "hidden",
+	textOverflow: "ellipsis",
+	whiteSpace: "nowrap",
+	md: { whiteSpace: "normal", wordBreak: "break-word" },
+});
+
+const copyActionsCellClass = css({
+	display: "flex",
+	flexWrap: "wrap",
+	gap: "2",
+	justifyContent: "flex-end",
 });
 
 const copyClassClass = css({
@@ -137,17 +275,7 @@ const copyClassClass = css({
 	color: "foreground",
 });
 
-const copyMetaClass = css({
-	fontSize: "xs",
-	color: "foregroundMuted",
-	mt: "1",
-});
-
-const addCopyFormClass = css({
-	borderTopWidth: "1px",
-	borderTopStyle: "solid",
-	borderTopColor: "border",
-	pt: "4",
+const addCopyFormInnerClass = css({
 	display: "flex",
 	flexDir: "column",
 	gap: "3",
@@ -162,12 +290,6 @@ const formRowClass = css({
 });
 
 const fieldClass = css({ flex: "1", minWidth: "120px" });
-
-const errorClass = css({
-	fontSize: "xs",
-	color: "danger",
-	mb: "2",
-});
 
 const errorBannerClass = css({
 	bg: "rgba(192,57,43,0.08)",
@@ -286,11 +408,83 @@ function EditionDetail() {
 	const [editOfferAmount, setEditOfferAmount] = useState("");
 	const [editOfferCurrency, setEditOfferCurrency] = useState("USD");
 	const [editCopyError, setEditCopyError] = useState<string | null>(null);
+	const [addCopyModalOpen, setAddCopyModalOpen] = useState(false);
+	const [addCopyOfferAmount, setAddCopyOfferAmount] = useState("");
+	const [addCopyOfferCurrency, setAddCopyOfferCurrency] = useState("USD");
+	const [addCopyPurchaseAmount, setAddCopyPurchaseAmount] = useState("");
 
 	const q = useQuery({
 		queryKey: ["edition", editionId],
 		queryFn: () => apiFetch<EditionDetailDto>(`/editions/${editionId}`),
 	});
+
+	const addCopyPricingQuery = useQuery({
+		queryKey: ["product-pricing", q.data?.priceChartingProductId] as const,
+		queryFn: () => {
+			const sp = new URLSearchParams();
+			sp.set("productId", q.data?.priceChartingProductId ?? "");
+			return apiFetch<PriceChartingPricingPreviewDto>(
+				`/product-pricing?${sp.toString()}`,
+			);
+		},
+		enabled: addCopyModalOpen && Boolean(q.data?.priceChartingProductId),
+		staleTime: 60_000,
+	});
+
+	const addCopyEffectivePricing = useMemo(() => {
+		const edition = q.data;
+		if (!edition) return null;
+		if (addCopyPricingQuery.data) return addCopyPricingQuery.data;
+		if (edition.snapshot) return snapshotToPricingPreview(edition.snapshot);
+		return null;
+	}, [q.data, addCopyPricingQuery.data]);
+
+	const addCopyBaseOfferCents = useMemo(() => {
+		if (!addCopyEffectivePricing) return null;
+		return baseOfferCentsPreview(addCopyEffectivePricing, classification);
+	}, [addCopyEffectivePricing, classification]);
+
+	const addCopyOfferAmountNumeric = useMemo(() => {
+		const t = addCopyOfferAmount.trim();
+		if (!t) return null;
+		const n = Number.parseFloat(t.replace(/,/g, ""));
+		return Number.isFinite(n) ? n : null;
+	}, [addCopyOfferAmount]);
+
+	const addCopyOfferCurrencyNorm =
+		addCopyOfferCurrency.trim().toUpperCase() || "USD";
+
+	const addCopyShowLowOfferWarning =
+		addCopyOfferAmountNumeric != null &&
+		addCopyOfferAmountNumeric < 5 &&
+		addCopyOfferCurrencyNorm === "USD";
+
+	const addCopyOfferSliderCents = useMemo(() => {
+		if (addCopyBaseOfferCents == null) return null;
+		const parsedCents =
+			addCopyOfferAmountNumeric != null
+				? Math.round(addCopyOfferAmountNumeric * 100)
+				: addCopyBaseOfferCents;
+		const minC = Math.max(
+			100,
+			Math.floor((addCopyBaseOfferCents * 0.5) / 100) * 100,
+		);
+		const maxC = Math.max(
+			Math.ceil((addCopyBaseOfferCents * 2) / 100) * 100,
+			minC + 100,
+		);
+		return {
+			minC,
+			maxC,
+			value: Math.min(maxC, Math.max(minC, parsedCents)),
+		};
+	}, [addCopyBaseOfferCents, addCopyOfferAmountNumeric]);
+
+	useEffect(() => {
+		if (!addCopyModalOpen) return;
+		if (addCopyBaseOfferCents == null) return;
+		setAddCopyOfferAmount((addCopyBaseOfferCents / 100).toFixed(2));
+	}, [addCopyModalOpen, addCopyBaseOfferCents]);
 
 	const refresh = useMutation({
 		mutationFn: () =>
@@ -301,6 +495,7 @@ function EditionDetail() {
 			setRefreshError(null);
 			queryClient.setQueryData(["edition", editionId], data);
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 		},
 		onError: (e) => {
 			setRefreshError(e instanceof Error ? e.message : "Refresh failed");
@@ -314,20 +509,47 @@ function EditionDetail() {
 				body: JSON.stringify({
 					copyClassification: classification,
 					classificationNotes: notes.trim() || undefined,
+					...(addCopyPurchaseAmount.trim()
+						? {
+								purchaseAmount: addCopyPurchaseAmount.trim(),
+								purchaseCurrency: "USD",
+							}
+						: {}),
+					...(addCopyOfferAmount.trim()
+						? {
+								offerAmount: addCopyOfferAmount.trim(),
+								offerCurrency:
+									addCopyOfferCurrency.trim().slice(0, 3) || "USD",
+							}
+						: {}),
 				}),
 			}),
 		onSuccess: () => {
 			setCopyError(null);
 			setNotes("");
+			setAddCopyOfferAmount("");
+			setAddCopyPurchaseAmount("");
+			setAddCopyOfferCurrency("USD");
+			setAddCopyModalOpen(false);
 			void q.refetch();
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 		},
 		onError: (e) => {
 			setCopyError(e instanceof Error ? e.message : "Could not add copy");
 		},
 	});
 
+	function closeAddCopyModal() {
+		setAddCopyModalOpen(false);
+		setCopyError(null);
+		setAddCopyOfferAmount("");
+		setAddCopyPurchaseAmount("");
+		setAddCopyOfferCurrency("USD");
+	}
+
 	function openSellModal(c: OwnedCopyDto) {
+		setAddCopyModalOpen(false);
 		setEditCopyId(null);
 		setEditCopyError(null);
 		setSellCopyId(c.id);
@@ -347,6 +569,7 @@ function EditionDetail() {
 	}
 
 	function openEditCopyModal(c: OwnedCopyDto) {
+		setAddCopyModalOpen(false);
 		setSellCopyId(null);
 		setSellError(null);
 		setEditCopyId(c.id);
@@ -389,6 +612,7 @@ function EditionDetail() {
 			closeEditCopyModal();
 			void q.refetch();
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 		},
 		onError: (e) => {
 			setEditCopyError(
@@ -422,6 +646,7 @@ function EditionDetail() {
 			closeSellModal();
 			void q.refetch();
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 		},
 		onError: (e) => {
 			setSellError(e instanceof Error ? e.message : "Could not save sale");
@@ -437,6 +662,7 @@ function EditionDetail() {
 			setDeleteError(null);
 			void queryClient.removeQueries({ queryKey: ["edition", editionId] });
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 			void navigate({ to: "/inventory" });
 		},
 		onError: (e) => {
@@ -596,86 +822,124 @@ function EditionDetail() {
 				{/* Copies */}
 				<Card>
 					<div className={cardHeader}>
-						<span className={cardTitleClass}>Your copies</span>
-						{e.copies.length > 0 && (
-							<Badge variant="default">{e.copies.length}</Badge>
-						)}
+						<span
+							className={css({
+								display: "flex",
+								alignItems: "center",
+								gap: "2",
+								flexWrap: "wrap",
+							})}
+						>
+							<span className={cardTitleClass}>Your copies</span>
+							{e.copies.length > 0 && (
+								<Badge variant="default">{e.copies.length}</Badge>
+							)}
+						</span>
+						<Button
+							type="button"
+							variant="primary"
+							size="sm"
+							onClick={() => {
+								setCopyError(null);
+								setAddCopyOfferAmount("");
+								setAddCopyPurchaseAmount("");
+								setAddCopyOfferCurrency("USD");
+								setAddCopyModalOpen(true);
+							}}
+						>
+							+ Add copy
+						</Button>
 					</div>
 					<div className={cardBody}>
 						{e.copies.length === 0 ? (
-							<p className={emptyTextClass}>No copies logged yet.</p>
+							<p className={emptyTextClass}>
+								No copies logged yet. Use{" "}
+								<strong className={css({ color: "foreground" })}>
+									Add copy
+								</strong>{" "}
+								above to log one.
+							</p>
 						) : (
-							<ul className={copyListClass}>
-								{e.copies.map((c: OwnedCopyDto) => (
-									<li key={c.id} className={copyItemClass}>
-										<div
-											className={css({
-												display: "flex",
-												flexDir: { base: "column", sm: "row" },
-												justifyContent: {
-													base: "flex-start",
-													sm: "space-between",
-												},
-												alignItems: { base: "stretch", sm: "flex-start" },
-												gap: "3",
-												flexWrap: "wrap",
-											})}
+							<div className={copiesTableScrollClass}>
+								<div className={copiesTableMinClass}>
+									<div className={copiesHeaderRowClass}>
+										<span>Class</span>
+										<span
+											className={css({ textAlign: "right" })}
 										>
-											<div className={css({ minWidth: 0, flex: "1" })}>
-												<span className={copyClassClass}>
-													{c.copyClassification.replace(/_/g, " ")}
-												</span>
-												{c.purchaseAmount != null && (
-													<span
-														className={css({
-															ml: "2",
-															fontSize: "xs",
-															color: "foregroundMuted",
-														})}
-													>
-														Paid {c.purchaseAmount} {c.purchaseCurrency ?? ""}
+											Paid
+										</span>
+										<span
+											className={css({ textAlign: "right" })}
+										>
+											Offer
+										</span>
+										<span>Sale</span>
+										<span>Notes</span>
+										<span />
+									</div>
+									{e.copies.map((c: OwnedCopyDto) => (
+										<div key={c.id} className={copyDataRowClass}>
+											<span className={copyClassClass}>
+												{c.copyClassification.replace(/_/g, " ")}
+											</span>
+											<span className={css({ textAlign: "right" })}>
+												{c.purchaseAmount != null ? (
+													<span className={copyCellClass}>
+														{formatMoneyAmount(
+															c.purchaseAmount,
+															c.purchaseCurrency,
+														)}
 													</span>
+												) : (
+													<span className={copyCellMutedClass}>—</span>
 												)}
-												{c.offerAmount != null && (
-													<span
-														className={css({
-															ml: "2",
-															fontSize: "xs",
-															color: "foregroundMuted",
-														})}
-													>
-														Offer {c.offerAmount} {c.offerCurrency ?? ""}
+											</span>
+											<span className={css({ textAlign: "right" })}>
+												{c.offerAmount != null ? (
+													<span className={copyCellClass}>
+														{formatMoneyAmount(
+															c.offerAmount,
+															c.offerCurrency,
+														)}
 													</span>
+												) : (
+													<span className={copyCellMutedClass}>—</span>
 												)}
-												{c.soldAt != null && (
+											</span>
+											<div>
+												{c.soldAt != null ? (
 													<span
 														className={css({
-															display: "block",
-															mt: "1",
-															fontSize: "xs",
+															fontSize: "sm",
 															color: "accentGreen",
 															fontWeight: "medium",
 														})}
 													>
-														Sold {c.soldAmount} {c.soldCurrency ?? ""} ·{" "}
-														{new Date(c.soldAt).toLocaleString()}
+														{formatMoneyAmount(
+															c.soldAmount ?? "0",
+															c.soldCurrency,
+														)}{" "}
+														·{" "}
+														{new Date(c.soldAt).toLocaleDateString()}
 													</span>
-												)}
-												{c.classificationNotes && (
-													<p className={copyMetaClass}>
-														{c.classificationNotes}
-													</p>
+												) : (
+													<span className={copyCellMutedClass}>—</span>
 												)}
 											</div>
 											<div
-												className={css({
-													display: "flex",
-													flexDir: { base: "column", sm: "row" },
-													gap: "2",
-													alignSelf: { base: "stretch", sm: "auto" },
-													flexShrink: 0,
-												})}
+												className={copyNotesCellClass}
+												title={
+													c.classificationNotes?.trim()
+														? c.classificationNotes
+														: undefined
+												}
 											>
+												{c.classificationNotes?.trim()
+													? c.classificationNotes
+													: "—"}
+											</div>
+											<div className={copyActionsCellClass}>
 												<Button
 													type="button"
 													variant="secondary"
@@ -686,7 +950,7 @@ function EditionDetail() {
 												</Button>
 												<Button
 													type="button"
-													variant="secondary"
+													variant="success"
 													size="sm"
 													onClick={() => openSellModal(c)}
 												>
@@ -694,25 +958,56 @@ function EditionDetail() {
 												</Button>
 											</div>
 										</div>
-									</li>
-								))}
-							</ul>
+									))}
+								</div>
+							</div>
 						)}
+					</div>
+				</Card>
+			</div>
 
+			<Dialog.Root
+				open={addCopyModalOpen}
+				onOpenChange={(open) => {
+					if (!open && addCopy.isPending) return;
+					if (!open) closeAddCopyModal();
+				}}
+			>
+				<Dialog.Portal>
+					<Dialog.Backdrop className={overlayClass} />
+					<Dialog.Popup
+						className={cx(modalPanelClass, css({ maxWidth: "520px" }))}
+					>
+						<Dialog.Title className={modalTitleClass}>
+							Add copy
+							<span
+								className={css({
+									display: "block",
+									fontSize: "xs",
+									fontWeight: "normal",
+									color: "foregroundMuted",
+									mt: "1",
+								})}
+							>
+								{e.title}
+							</span>
+						</Dialog.Title>
 						<form
-							className={addCopyFormClass}
+							className={addCopyFormInnerClass}
 							onSubmit={(ev) => {
 								ev.preventDefault();
 								setCopyError(null);
 								addCopy.mutate();
 							}}
 						>
-							{copyError && <p className={errorClass}>{copyError}</p>}
+							{copyError && <p className={errorBannerClass}>{copyError}</p>}
 							<div className={formRowClass}>
 								<div className={fieldClass}>
-									<Label htmlFor="classification">Classification</Label>
+									<Label htmlFor="add-copy-classification">
+										Classification
+									</Label>
 									<Select
-										id="classification"
+										id="add-copy-classification"
 										value={classification}
 										onValueChange={(v) =>
 											setClassification(v as CopyClassification)
@@ -724,9 +1019,9 @@ function EditionDetail() {
 									/>
 								</div>
 								<div className={css({ flex: "2", minWidth: "120px" })}>
-									<Label htmlFor="notes">Notes (optional)</Label>
+									<Label htmlFor="add-copy-notes">Notes (optional)</Label>
 									<input
-										id="notes"
+										id="add-copy-notes"
 										value={notes}
 										onChange={(ev) => setNotes(ev.target.value)}
 										placeholder="e.g. mild box wear"
@@ -734,20 +1029,220 @@ function EditionDetail() {
 									/>
 								</div>
 							</div>
-							<div>
+
+							{(e.snapshot || e.priceChartingProductId) && (
+								<div className={formGroupClass} aria-live="polite">
+									<span
+										className={css({
+											fontSize: "sm",
+											fontWeight: "medium",
+											color: "foreground",
+										})}
+									>
+										PriceCharting (FMV)
+									</span>
+									{e.priceChartingProductId &&
+										addCopyPricingQuery.isFetching &&
+										!addCopyEffectivePricing && (
+											<p
+												className={css({
+													fontSize: "sm",
+													color: "foregroundMuted",
+													mb: "0",
+												})}
+											>
+												Loading prices…
+											</p>
+										)}
+									{e.priceChartingProductId &&
+										addCopyPricingQuery.isError &&
+										!addCopyEffectivePricing && (
+											<p
+												className={css({
+													fontSize: "sm",
+													color: "danger",
+													mb: "0",
+												})}
+											>
+												Could not load prices (check API token / network).
+											</p>
+										)}
+									{addCopyEffectivePricing && (
+										<>
+											{(addCopyEffectivePricing.productName ||
+												addCopyEffectivePricing.consoleName) && (
+												<p
+													className={css({
+														fontSize: "xs",
+														color: "foregroundMuted",
+														m: "0",
+													})}
+												>
+													{addCopyEffectivePricing.productName}
+													{addCopyEffectivePricing.consoleName && (
+														<> · {addCopyEffectivePricing.consoleName}</>
+													)}
+												</p>
+											)}
+											<dl className={priceDlClass}>
+												<dt className={priceDtClass}>Loose</dt>
+												<dd className={priceDdClass}>
+													{formatPcCents(addCopyEffectivePricing.loosePrice)}
+												</dd>
+												<dt className={priceDtClass}>CIB</dt>
+												<dd className={priceDdClass}>
+													{formatPcCents(addCopyEffectivePricing.cibPrice)}
+												</dd>
+												<dt className={priceDtClass}>New</dt>
+												<dd className={priceDdClass}>
+													{formatPcCents(addCopyEffectivePricing.newPrice)}
+												</dd>
+												<dt className={priceDtClass}>Graded</dt>
+												<dd className={priceDdClass}>
+													{formatPcCents(addCopyEffectivePricing.gradedPrice)}
+												</dd>
+												{addCopyEffectivePricing.salesVolume != null && (
+													<>
+														<dt className={priceDtClass}>Sales vol.</dt>
+														<dd className={priceDdClass}>
+															{addCopyEffectivePricing.salesVolume.toLocaleString()}
+														</dd>
+													</>
+												)}
+											</dl>
+											<p className={mutedHelpClass}>
+												Asking price starts at the FMV for your selected
+												condition; use the slider or type to adjust.
+											</p>
+										</>
+									)}
+								</div>
+							)}
+
+							<div className={formGroupClass}>
+								<Field label="Paid (optional)" htmlFor="add-copy-purchase">
+									<Input
+										id="add-copy-purchase"
+										type="text"
+										inputMode="decimal"
+										autoComplete="off"
+										value={addCopyPurchaseAmount}
+										onChange={(ev) =>
+											setAddCopyPurchaseAmount(ev.target.value)
+										}
+										placeholder="0.00"
+										className={inputClass}
+									/>
+								</Field>
+
+								<Field
+									label={
+										<>
+											Asking (optional){" "}
+											<span
+												className={css({
+													color: "foregroundMuted",
+													fontWeight: "normal",
+												})}
+											>
+												(USD)
+											</span>
+										</>
+									}
+									htmlFor="add-copy-offer-amt"
+								>
+									<div
+										className={css({
+											display: "flex",
+											gap: "2",
+											alignItems: "stretch",
+										})}
+									>
+										<Input
+											id="add-copy-offer-amt"
+											type="text"
+											inputMode="decimal"
+											autoComplete="off"
+											value={addCopyOfferAmount}
+											onChange={(ev) =>
+												setAddCopyOfferAmount(ev.target.value)
+											}
+											placeholder="0.00"
+											className={cx(inputClass, css({ flex: "1", minW: "0" }))}
+										/>
+										<Input
+											id="add-copy-offer-ccy"
+											type="text"
+											autoComplete="off"
+											value={addCopyOfferCurrency}
+											onChange={(ev) =>
+												setAddCopyOfferCurrency(
+													ev.target.value.toUpperCase().slice(0, 3),
+												)
+											}
+											placeholder="USD"
+											maxLength={3}
+											aria-label="Offer currency"
+											className={cx(
+												inputClass,
+												css({ width: "60px", flexShrink: "0" }),
+											)}
+										/>
+									</div>
+									{addCopyOfferSliderCents && (
+										<input
+											type="range"
+											className={css({
+												w: "100%",
+												mt: "2",
+												accentColor: "accent",
+												cursor: "pointer",
+											})}
+											min={addCopyOfferSliderCents.minC}
+											max={addCopyOfferSliderCents.maxC}
+											step={100}
+											value={addCopyOfferSliderCents.value}
+											aria-label="Adjust asking price"
+											onChange={(ev) =>
+												setAddCopyOfferAmount(
+													(Number(ev.target.value) / 100).toFixed(2),
+												)
+											}
+										/>
+									)}
+									{addCopyShowLowOfferWarning && (
+										<output
+											className={lowOfferWarningClass}
+											htmlFor="add-copy-offer-amt add-copy-offer-ccy"
+											aria-live="polite"
+										>
+											Prices under $5 may sell faster but earn less.
+										</output>
+									)}
+								</Field>
+							</div>
+
+							<div className={modalActionsClass}>
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => closeAddCopyModal()}
+									disabled={addCopy.isPending}
+								>
+									Cancel
+								</Button>
 								<Button
 									type="submit"
 									variant="primary"
-									size="sm"
 									disabled={addCopy.isPending}
 								>
-									{addCopy.isPending ? "Adding…" : "+ Add copy"}
+									{addCopy.isPending ? "Adding…" : "Add copy"}
 								</Button>
 							</div>
 						</form>
-					</div>
-				</Card>
-			</div>
+					</Dialog.Popup>
+				</Dialog.Portal>
+			</Dialog.Root>
 
 			<Dialog.Root
 				open={editCopyId !== null}

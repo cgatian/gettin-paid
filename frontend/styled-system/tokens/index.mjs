@@ -39,6 +39,10 @@ const tokens = {
     "value": "#42946E",
     "variable": "var(--colors-accent-green)"
   },
+  "colors.accentGreenHover": {
+    "value": "#357a5a",
+    "variable": "var(--colors-accent-green-hover)"
+  },
   "colors.navActive": {
     "value": "rgba(255,255,255,0.06)",
     "variable": "var(--colors-nav-active)"

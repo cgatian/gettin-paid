@@ -1,6 +1,5 @@
 import type {
 	BulkRefreshMarketResultDto,
-	EditionListActiveCopyDto,
 	GameEditionDto,
 } from "@gettin-paid/shared";
 import {
@@ -10,12 +9,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { css } from "styled-system/css";
+import { css, cx } from "styled-system/css";
 import { Badge } from "#/components/ui/Badge";
 import { Button, buttonVariants } from "#/components/ui/Button";
 import { Card } from "#/components/ui/Card";
 import { apiFetch } from "#/lib/api";
-import { formatPcCents } from "#/lib/money";
+import { formatMoneyAmount, formatPcCents } from "#/lib/money";
 
 const popularSet = new Set(POPULAR_PRICECHARTING_CONSOLE_IDS);
 
@@ -42,28 +41,8 @@ function editionConsoleLabel(
 	);
 }
 
-function ActiveCopyValues({ rows }: { rows: EditionListActiveCopyDto[] }) {
-	if (rows.length === 0) return null;
-	return (
-		<div className={editionValuesClass}>
-			{rows.map((row) => (
-				<p key={row.id} className={css({ margin: "0 0 4px 0" })}>
-					<span className={css({ color: "foregroundMuted" })}>
-						{row.copyClassification.replace(/_/g, " ")}
-					</span>
-					{" · "}
-					<span>FMV {formatPcCents(row.fmvCents)}</span>
-					{row.offerAmount != null && (
-						<span className={css({ color: "foregroundMuted" })}>
-							{" · "}
-							Proposed {row.offerAmount}
-							{row.offerCurrency ? ` ${row.offerCurrency}` : ""}
-						</span>
-					)}
-				</p>
-			))}
-		</div>
-	);
+function classificationLabel(c: string) {
+	return c.replace(/_/g, " ");
 }
 
 const pageClass = css({ p: "6" });
@@ -137,14 +116,28 @@ const listClass = css({
 	gap: "2",
 });
 
-const editionLinkClass = css({
+/** Matches each edition row grid: title block | FMV | Proposed | actions */
+const listColumnHeaderClass = css({
+	display: { base: "none", md: "grid" },
+	gridTemplateColumns: "minmax(0,1fr) auto auto minmax(min-content,max-content)",
+	columnGap: "4",
+	alignItems: "baseline",
+	px: "4",
+	pb: "2",
+	mb: "1",
+	fontSize: "xs",
+	fontWeight: "medium",
+	color: "foregroundMuted",
+	textTransform: "uppercase",
+	letterSpacing: "0.06em",
+});
+
+const editionCardClass = css({
 	display: "flex",
-	flexDir: { base: "column", md: "row" },
-	alignItems: { base: "flex-start", md: "center" },
-	justifyContent: { base: "flex-start", md: "space-between" },
+	flexDir: "column",
+	gap: "3",
 	p: "4",
 	textDecoration: "none",
-	gap: "4",
 	borderRadius: "card",
 	bg: "surface",
 	borderWidth: "1px",
@@ -152,6 +145,22 @@ const editionLinkClass = css({
 	borderColor: "border",
 	transition: "border-color 120ms ease, background-color 120ms ease",
 	_hover: { borderColor: "borderSubtle", bg: "rgba(255,255,255,0.03)" },
+	md: {
+		display: "grid",
+		columnGap: "4",
+		rowGap: "2",
+		alignItems: "center",
+		gridTemplateColumns:
+			"minmax(0,1fr) auto auto minmax(min-content,max-content)",
+	},
+});
+
+const editionTitleBlockClass = css({
+	minWidth: "0",
+	md: {
+		gridColumn: "1",
+		gridRow: "1 / 3",
+	},
 });
 
 const editionTitleClass = css({
@@ -167,11 +176,39 @@ const editionMetaClass = css({
 	margin: "0",
 });
 
-const editionValuesClass = css({
+const editionClassificationClass = css({
 	fontSize: "sm",
+	color: "foregroundMuted",
+	minWidth: "0",
+});
+
+const editionMetricClass = css({
+	fontSize: "sm",
+	fontVariantNumeric: "tabular-nums",
 	color: "foreground",
-	margin: "8px 0 0 0",
-	lineHeight: "1.4",
+	textAlign: "right",
+	whiteSpace: "nowrap",
+});
+
+const editionMetricMutedClass = css({
+	fontSize: "sm",
+	fontVariantNumeric: "tabular-nums",
+	color: "foregroundMuted",
+	textAlign: "right",
+	whiteSpace: "nowrap",
+});
+
+const editionActionsClass = css({
+	display: "flex",
+	alignItems: "center",
+	gap: "3",
+	alignSelf: "flex-end",
+	justifyContent: "flex-end",
+	md: {
+		gridColumn: "4",
+		alignSelf: "center",
+		justifySelf: "end",
+	},
 });
 
 const arrowClass = css({
@@ -546,44 +583,121 @@ function InventoryList() {
 			)}
 
 			{data && data.length > 0 && (
-				<ul className={listClass}>
-					{data.map((e) => (
-						<li key={e.id}>
-							<Link
-								to="/inventory/$editionId"
-								params={{ editionId: e.id }}
-								className={editionLinkClass}
-							>
-								<div>
-									<p className={editionTitleClass}>{e.title}</p>
-									<p className={editionMetaClass}>
-										{editionConsoleLabel(e)}
-										{e.copyCount != null && e.copyCount > 0
-											? ` · ${e.copyCount} ${e.copyCount === 1 ? "copy" : "copies"}`
-											: ""}
-									</p>
-									{e.activeCopies && e.activeCopies.length > 0 && (
-										<ActiveCopyValues rows={e.activeCopies} />
-									)}
-								</div>
-								<div
-									className={css({
-										display: "flex",
-										alignItems: "center",
-										gap: "3",
-										alignSelf: { base: "stretch", md: "auto" },
-										justifyContent: { base: "space-between", md: "flex-end" },
-									})}
-								>
-									{e.copyCount != null && e.copyCount > 0 && (
-										<Badge variant="default">{e.copyCount}</Badge>
-									)}
-									<span className={arrowClass}>→</span>
-								</div>
-							</Link>
-						</li>
-					))}
-				</ul>
+				<>
+					{data.some((e) => (e.activeCopies?.length ?? 0) > 0) && (
+						<div className={listColumnHeaderClass} aria-hidden="true">
+							<span style={{ gridColumn: 1 }} />
+							<span style={{ gridColumn: 2, textAlign: "right" }}>FMV</span>
+							<span style={{ gridColumn: 3, textAlign: "right" }}>Proposed</span>
+							<span style={{ gridColumn: 4 }} />
+						</div>
+					)}
+					<ul className={listClass}>
+						{data.map((e) => {
+							const copies = e.activeCopies ?? [];
+							const n = copies.length;
+							return (
+								<li key={e.id}>
+									<Link
+										to="/inventory/$editionId"
+										params={{ editionId: e.id }}
+										className={editionCardClass}
+									>
+										<div className={editionTitleBlockClass}>
+											<p className={editionTitleClass}>{e.title}</p>
+											<p className={editionMetaClass}>
+												{editionConsoleLabel(e)}
+												{e.copyCount != null && e.copyCount > 0
+													? ` · ${e.copyCount} ${e.copyCount === 1 ? "copy" : "copies"}`
+													: ""}
+											</p>
+										</div>
+										{copies.map((row, i) => (
+											<div
+												key={row.id}
+												className={css({
+													display: { base: "grid", md: "contents" },
+													gridTemplateColumns: {
+														base: "minmax(0,1fr) auto auto",
+														md: undefined,
+													},
+													columnGap: "3",
+													alignItems: "baseline",
+													borderTopWidth: { base: "1px", md: "0" },
+													borderTopStyle: "solid",
+													borderTopColor: "borderSubtle",
+													pt: { base: "3", md: "0" },
+												})}
+											>
+												<span
+													className={cx(
+														editionClassificationClass,
+														css({
+															md: {
+																gridColumn: "1",
+																gridRow: `${3 + i} / ${4 + i}`,
+															},
+														}),
+													)}
+												>
+													{classificationLabel(row.copyClassification)}
+												</span>
+												<span
+													className={cx(
+														editionMetricClass,
+														css({
+															md: {
+																gridColumn: "2",
+																gridRow: `${3 + i} / ${4 + i}`,
+															},
+														}),
+													)}
+												>
+													{formatPcCents(row.fmvCents)}
+												</span>
+												<span
+													className={cx(
+														row.offerAmount != null
+															? editionMetricClass
+															: editionMetricMutedClass,
+														css({
+															md: {
+																gridColumn: "3",
+																gridRow: `${3 + i} / ${4 + i}`,
+															},
+														}),
+													)}
+												>
+													{row.offerAmount != null
+														? formatMoneyAmount(
+																row.offerAmount,
+																row.offerCurrency,
+															)
+														: "—"}
+												</span>
+											</div>
+										))}
+										<div
+											className={cx(
+												editionActionsClass,
+												css({
+													md: {
+														gridRow: n > 0 ? `1 / ${3 + n}` : "1 / 3",
+													},
+												}),
+											)}
+										>
+											{e.copyCount != null && e.copyCount > 0 && (
+												<Badge variant="default">{e.copyCount}</Badge>
+											)}
+											<span className={arrowClass}>→</span>
+										</div>
+									</Link>
+								</li>
+							);
+						})}
+					</ul>
+				</>
 			)}
 		</div>
 	);

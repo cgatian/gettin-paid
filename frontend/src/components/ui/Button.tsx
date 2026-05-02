@@ -1,4 +1,3 @@
-import { Button as BaseButton } from '@base-ui/react'
 import { cva, cx } from 'styled-system/css'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
@@ -56,6 +55,12 @@ const buttonVariants = cva({
         borderColor: 'danger',
         _hover: { bg: 'dangerHover', borderColor: 'dangerHover' },
       },
+      success: {
+        bg: 'accentGreen',
+        color: 'foreground',
+        borderColor: 'accentGreen',
+        _hover: { bg: 'accentGreenHover', borderColor: 'accentGreenHover' },
+      },
     },
     size: {
       sm: { px: '3', py: '1', fontSize: 'sm' },
@@ -69,7 +74,7 @@ const buttonVariants = cva({
   },
 })
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -78,15 +83,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode
 }
 
-export function Button({ variant, size, className, children, ...props }: ButtonProps) {
+export function Button({
+  variant,
+  size,
+  className,
+  children,
+  type = 'button',
+  ...props
+}: ButtonProps) {
   return (
-    <BaseButton
-      type="button"
+    <button
+      type={type}
       className={cx(buttonVariants({ variant, size }), className)}
       {...props}
     >
       {children}
-    </BaseButton>
+    </button>
   )
 }
 

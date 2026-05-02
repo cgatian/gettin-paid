@@ -12,11 +12,11 @@ import {
 	Res,
 } from "@nestjs/common";
 import type { Response } from "express";
-import type { CreateCopyDto } from "./dto/create-copy.dto";
-import type { CreateEditionDto } from "./dto/create-edition.dto";
-import type { ImportCsvDto } from "./dto/import-csv.dto";
-import type { PatchCopyDto } from "./dto/patch-copy.dto";
-import type { PatchEditionDto } from "./dto/patch-edition.dto";
+import { CreateCopyDto } from "./dto/create-copy.dto";
+import { CreateEditionDto } from "./dto/create-edition.dto";
+import { ImportCsvDto } from "./dto/import-csv.dto";
+import { PatchCopyDto } from "./dto/patch-copy.dto";
+import { PatchEditionDto } from "./dto/patch-edition.dto";
 import { InventoryService } from "./inventory.service";
 
 @Controller()

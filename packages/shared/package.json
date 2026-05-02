@@ -14,6 +14,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "gen:console-ids": "node scripts/gen-pricecharting-console-ids.mjs",
     "gen:console-migration-sql": "node scripts/gen-pricecharting-console-migration-sql.mjs"

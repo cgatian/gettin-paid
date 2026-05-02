@@ -361,6 +361,7 @@ function AddGame() {
 		},
 		onSuccess: (edition) => {
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 			void navigate({
 				to: "/inventory/$editionId",
 				params: { editionId: edition.id },

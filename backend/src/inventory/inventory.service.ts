@@ -218,7 +218,28 @@ export class InventoryService {
 		let totalValueCents = 0;
 		let valuedCopyCount = 0;
 		let unpricedCopyCount = 0;
+		let proposedTotalUsdCents = 0;
+		let proposedOfferCopyCount = 0;
 		for (const c of activeCopies) {
+			if (c.offerAmount != null) {
+				// Empty string is stored for some rows; treat like missing currency → USD
+				const cur = (c.offerCurrency?.trim() || "USD")
+					.toUpperCase()
+					.slice(0, 3);
+				if (cur === "USD") {
+					const dollars =
+						typeof c.offerAmount === "object" &&
+						c.offerAmount !== null &&
+						"toNumber" in c.offerAmount
+							? (c.offerAmount as Prisma.Decimal).toNumber()
+							: Number(c.offerAmount);
+					if (Number.isFinite(dollars)) {
+						proposedTotalUsdCents += Math.round(dollars * 100);
+						proposedOfferCopyCount++;
+					}
+				}
+			}
+
 			const snap = c.edition.snapshot;
 			if (!snap) {
 				unpricedCopyCount++;
@@ -248,6 +269,8 @@ export class InventoryService {
 			unpricedCopyCount,
 			activeCopyCount: activeCopies.length,
 			editionCount,
+			proposedTotalUsdCents,
+			proposedOfferCopyCount,
 		};
 	}
 

@@ -198,6 +198,13 @@ export type DashboardSummaryDto = {
 	unpricedCopyCount: number;
 	activeCopyCount: number;
 	editionCount: number;
+	/**
+	 * Sum of proposed / asking prices for active unsold copies, in USD whole cents.
+	 * Only offers with currency USD (or blank, treated as USD) are included.
+	 */
+	proposedTotalUsdCents: number;
+	/** Active copies counted toward proposedTotalUsdCents */
+	proposedOfferCopyCount: number;
 };
 
 export type BulkImportResultDto = {
