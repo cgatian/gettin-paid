@@ -1,0 +1,12 @@
+# Nest API — use for a second Railway service. In the service settings, set
+# “Config as code” file to /backend/railway.toml (or merge these into the UI).
+# Link Railway Postgres so DATABASE_URL is set. Set FRONTEND_URL to your deployed web origin(s).
+[build]
+builder = "RAILPACK"
+buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @gettin-paid/shared build && pnpm --filter @gettin-paid/backend build"
+
+[deploy]
+preDeployCommand = ["pnpm run db:migrate"]
+startCommand = "pnpm --filter @gettin-paid/backend start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30

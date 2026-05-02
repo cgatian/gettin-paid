@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "./dist",
+    "ignoreDeprecations": "6.0",
+    "incremental": false
+  },
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts", "src/oneoff/**"]
+}

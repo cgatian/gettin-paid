@@ -1,0 +1,24 @@
+{
+  "name": "@gettin-paid/shared",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "gen:console-ids": "node scripts/gen-pricecharting-console-ids.mjs",
+    "gen:console-migration-sql": "node scripts/gen-pricecharting-console-migration-sql.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2"
+  }
+}

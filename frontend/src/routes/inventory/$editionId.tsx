@@ -1,0 +1,650 @@
+import {
+  CopyClassification,
+  type EditionDetailDto,
+  type OwnedCopyDto,
+  labelPriceChartingConsole,
+} from '@gettin-paid/shared'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { css } from 'styled-system/css'
+import { Button } from '#/components/ui/Button'
+import { Card, cardBody, cardHeader } from '#/components/ui/Card'
+import { Badge } from '#/components/ui/Badge'
+import { Select, Label } from '#/components/ui/Input'
+import { apiFetch } from '#/lib/api'
+import { formatPcCents } from '#/lib/money'
+
+export const Route = createFileRoute('/inventory/$editionId')({ component: EditionDetail })
+
+const CLASSIFICATION_OPTIONS = Object.values(CopyClassification)
+
+function editionConsoleBadge(
+  e: Pick<EditionDetailDto, 'priceChartingConsoleId' | 'priceChartingConsoleName'>,
+) {
+  return (
+    e.priceChartingConsoleName ?? labelPriceChartingConsole(e.priceChartingConsoleId)
+  )
+}
+
+const pageClass = css({ p: '6' })
+
+const backLinkClass = css({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '1',
+  fontSize: 'sm',
+  color: 'foregroundMuted',
+  textDecoration: 'none',
+  mb: '5',
+  _hover: { color: 'foreground' },
+  transition: 'color 120ms ease',
+})
+
+const pageHeaderClass = css({ mb: '6' })
+
+const pageTitleClass = css({
+  fontSize: '2xl',
+  fontWeight: 'normal',
+  color: 'foreground',
+  mb: '2',
+  letterSpacing: '-0.01em',
+})
+
+const metaRowClass = css({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '2',
+  flexWrap: 'wrap',
+})
+
+const metaTextClass = css({
+  fontSize: 'sm',
+  color: 'foregroundMuted',
+})
+
+const gridClass = css({
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: '4',
+  mb: '4',
+})
+
+const cardTitleClass = css({
+  fontSize: 'base',
+  fontWeight: 'medium',
+  color: 'foreground',
+})
+
+const emptyTextClass = css({
+  fontSize: 'sm',
+  color: 'foregroundMuted',
+  margin: '0',
+})
+
+const dlClass = css({
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: '2',
+  margin: '0',
+})
+
+const dtClass = css({ fontSize: 'sm', color: 'foregroundMuted' })
+
+const ddClass = css({
+  fontSize: 'sm',
+  fontWeight: 'medium',
+  color: 'accentGreen',
+  margin: '0',
+})
+
+const fetchedAtClass = css({
+  fontSize: 'xs',
+  color: 'foregroundMuted',
+  mb: '3',
+})
+
+const copyListClass = css({
+  listStyle: 'none',
+  padding: '0',
+  margin: '0 0 16px 0',
+  display: 'flex',
+  flexDir: 'column',
+  gap: '2',
+})
+
+const copyItemClass = css({
+  bg: 'background',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: 'border',
+  borderRadius: 'btn',
+  px: '3',
+  py: '2',
+  fontSize: 'sm',
+})
+
+const copyClassClass = css({
+  fontWeight: 'medium',
+  color: 'foreground',
+})
+
+const copyMetaClass = css({
+  fontSize: 'xs',
+  color: 'foregroundMuted',
+  mt: '1',
+})
+
+const addCopyFormClass = css({
+  borderTopWidth: '1px',
+  borderTopStyle: 'solid',
+  borderTopColor: 'border',
+  pt: '4',
+  display: 'flex',
+  flexDir: 'column',
+  gap: '3',
+})
+
+const formRowClass = css({
+  display: 'flex',
+  gap: '3',
+  alignItems: 'flex-end',
+  flexWrap: 'wrap',
+})
+
+const fieldClass = css({ flex: '1', minWidth: '120px' })
+
+const errorClass = css({
+  fontSize: 'xs',
+  color: 'danger',
+  mb: '2',
+})
+
+const errorBannerClass = css({
+  bg: 'rgba(192,57,43,0.08)',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: 'rgba(192,57,43,0.2)',
+  borderRadius: 'btn',
+  px: '3',
+  py: '2',
+  fontSize: 'sm',
+  color: 'danger',
+  mb: '3',
+})
+
+const stateTextClass = css({ color: 'foregroundMuted', fontSize: 'sm', p: '6' })
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function toDatetimeLocalValue(d: Date) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+function isoToDatetimeLocal(iso: string) {
+  return toDatetimeLocalValue(new Date(iso))
+}
+
+const textInputClass = css({
+  display: 'block',
+  width: '100%',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: 'border',
+  bg: 'background',
+  color: 'foreground',
+  borderRadius: 'btn',
+  px: '3',
+  py: '2',
+  fontSize: 'sm',
+  outline: 'none',
+  fontFamily: 'sans',
+  _focus: { borderColor: 'accent' },
+  _placeholder: { color: 'foregroundMuted' },
+})
+
+const overlayClass = css({
+  position: 'fixed',
+  inset: 0,
+  bg: 'rgba(0,0,0,0.45)',
+  zIndex: 100,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  p: '4',
+})
+
+const modalPanelClass = css({
+  bg: 'card',
+  borderRadius: 'btn',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: 'border',
+  maxWidth: '420px',
+  width: '100%',
+  p: '5',
+  boxShadow: 'md',
+})
+
+const modalTitleClass = css({
+  fontSize: 'lg',
+  fontWeight: 'medium',
+  color: 'foreground',
+  mb: '4',
+  mt: '0',
+})
+
+const modalActionsClass = css({
+  display: 'flex',
+  gap: '3',
+  justifyContent: 'flex-end',
+  mt: '5',
+  pt: '1',
+})
+
+function EditionDetail() {
+  const { editionId } = Route.useParams()
+  const queryClient = useQueryClient()
+  const [copyError, setCopyError] = useState<string | null>(null)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
+  const [classification, setClassification] = useState<CopyClassification>(CopyClassification.CIB)
+  const [notes, setNotes] = useState('')
+  const [sellCopyId, setSellCopyId] = useState<string | null>(null)
+  const [sellAmount, setSellAmount] = useState('')
+  const [sellCurrency, setSellCurrency] = useState('USD')
+  const [sellDatetimeLocal, setSellDatetimeLocal] = useState(() =>
+    toDatetimeLocalValue(new Date()),
+  )
+  const [sellError, setSellError] = useState<string | null>(null)
+
+  const q = useQuery({
+    queryKey: ['edition', editionId],
+    queryFn: () => apiFetch<EditionDetailDto>(`/editions/${editionId}`),
+  })
+
+  const refresh = useMutation({
+    mutationFn: () =>
+      apiFetch<EditionDetailDto>(`/editions/${editionId}/refresh-market`, { method: 'POST' }),
+    onSuccess: (data) => {
+      setRefreshError(null)
+      queryClient.setQueryData(['edition', editionId], data)
+      void queryClient.invalidateQueries({ queryKey: ['editions'] })
+    },
+    onError: (e) => {
+      setRefreshError(e instanceof Error ? e.message : 'Refresh failed')
+    },
+  })
+
+  const addCopy = useMutation({
+    mutationFn: () =>
+      apiFetch<OwnedCopyDto>(`/editions/${editionId}/copies`, {
+        method: 'POST',
+        body: JSON.stringify({
+          copyClassification: classification,
+          classificationNotes: notes.trim() || undefined,
+        }),
+      }),
+    onSuccess: () => {
+      setCopyError(null)
+      setNotes('')
+      void q.refetch()
+      void queryClient.invalidateQueries({ queryKey: ['editions'] })
+    },
+    onError: (e) => {
+      setCopyError(e instanceof Error ? e.message : 'Could not add copy')
+    },
+  })
+
+  function openSellModal(c: OwnedCopyDto) {
+    setSellCopyId(c.id)
+    setSellAmount(c.soldAmount ?? '')
+    setSellCurrency((c.soldCurrency ?? 'USD').trim().slice(0, 3) || 'USD')
+    setSellDatetimeLocal(c.soldAt ? isoToDatetimeLocal(c.soldAt) : toDatetimeLocalValue(new Date()))
+    setSellError(null)
+  }
+
+  function closeSellModal() {
+    setSellCopyId(null)
+    setSellError(null)
+  }
+
+  const markSold = useMutation({
+    mutationFn: async () => {
+      const id = sellCopyId
+      if (!id) throw new Error('No copy selected')
+      const amt = sellAmount.trim()
+      if (!amt) throw new Error('Enter the sale amount')
+      let soldAtIso: string
+      try {
+        soldAtIso = new Date(sellDatetimeLocal).toISOString()
+      } catch {
+        throw new Error('Invalid sale date')
+      }
+      return apiFetch<OwnedCopyDto>(`/copies/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          soldAmount: amt,
+          soldCurrency: sellCurrency.trim() || 'USD',
+          soldAt: soldAtIso,
+        }),
+      })
+    },
+    onSuccess: () => {
+      closeSellModal()
+      void q.refetch()
+      void queryClient.invalidateQueries({ queryKey: ['editions'] })
+    },
+    onError: (e) => {
+      setSellError(e instanceof Error ? e.message : 'Could not save sale')
+    },
+  })
+
+  useEffect(() => {
+    if (!sellCopyId) return
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') {
+        setSellCopyId(null)
+        setSellError(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sellCopyId])
+
+  if (q.isLoading) {
+    return <p className={stateTextClass}>Loading…</p>
+  }
+
+  if (q.isError || !q.data) {
+    return (
+      <div className={pageClass}>
+        <p className={css({ color: 'danger', mb: '3' })}>
+          {q.error instanceof Error ? q.error.message : 'Edition not found'}
+        </p>
+        <Link to="/inventory" className={backLinkClass}>
+          ← Back to inventory
+        </Link>
+      </div>
+    )
+  }
+
+  const e = q.data
+  const snap = e.snapshot
+  const sellingCopy =
+    sellCopyId !== null ? e.copies.find((c) => c.id === sellCopyId) : undefined
+
+  return (
+    <div className={pageClass}>
+      <Link to="/inventory" className={backLinkClass}>
+        ← Inventory
+      </Link>
+
+      <div className={pageHeaderClass}>
+        <h1 className={pageTitleClass}>{e.title}</h1>
+        <div className={metaRowClass}>
+          <Badge variant="default">{editionConsoleBadge(e)}</Badge>
+          <span className={metaTextClass}>UPC {e.upc}</span>
+          {e.publisher && <span className={metaTextClass}>· {e.publisher}</span>}
+        </div>
+      </div>
+
+      <div className={gridClass}>
+        {/* Market snapshot */}
+        <Card>
+          <div className={cardHeader}>
+            <span className={cardTitleClass}>Market snapshot</span>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={refresh.isPending}
+              onClick={() => {
+                setRefreshError(null)
+                refresh.mutate()
+              }}
+            >
+              {refresh.isPending ? 'Refreshing…' : 'Refresh'}
+            </Button>
+          </div>
+          <div className={cardBody}>
+            {refreshError && <p className={errorBannerClass}>{refreshError}</p>}
+            {!snap ? (
+              <p className={emptyTextClass}>
+                No snapshot yet. Use refresh if your API token is configured.
+              </p>
+            ) : (
+              <>
+                <p className={fetchedAtClass}>
+                  Fetched {new Date(snap.fetchedAt).toLocaleString()}
+                  {snap.productName && snap.productName !== e.title
+                    ? ` · PC: ${snap.productName}`
+                    : null}
+                </p>
+                <dl className={dlClass}>
+                  <dt className={dtClass}>Loose</dt>
+                  <dd className={ddClass}>{formatPcCents(snap.loosePrice)}</dd>
+                  <dt className={dtClass}>CIB</dt>
+                  <dd className={ddClass}>{formatPcCents(snap.cibPrice)}</dd>
+                  <dt className={dtClass}>New</dt>
+                  <dd className={ddClass}>{formatPcCents(snap.newPrice)}</dd>
+                  <dt className={dtClass}>Graded</dt>
+                  <dd className={ddClass}>{formatPcCents(snap.gradedPrice)}</dd>
+                  {snap.salesVolume != null && (
+                    <>
+                      <dt className={dtClass}>Sales vol.</dt>
+                      <dd className={css({ margin: '0', fontSize: 'sm', color: 'foreground' })}>
+                        {snap.salesVolume.toLocaleString()}
+                      </dd>
+                    </>
+                  )}
+                </dl>
+              </>
+            )}
+          </div>
+        </Card>
+
+        {/* Copies */}
+        <Card>
+          <div className={cardHeader}>
+            <span className={cardTitleClass}>Your copies</span>
+            {e.copies.length > 0 && (
+              <Badge variant="default">{e.copies.length}</Badge>
+            )}
+          </div>
+          <div className={cardBody}>
+            {e.copies.length === 0 ? (
+              <p className={emptyTextClass}>No copies logged yet.</p>
+            ) : (
+              <ul className={copyListClass}>
+                {e.copies.map((c: OwnedCopyDto) => (
+                  <li key={c.id} className={copyItemClass}>
+                    <div
+                      className={css({
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '3',
+                        flexWrap: 'wrap',
+                      })}
+                    >
+                      <div className={css({ minWidth: 0, flex: '1' })}>
+                        <span className={copyClassClass}>
+                          {c.copyClassification.replace(/_/g, ' ')}
+                        </span>
+                        {c.purchaseAmount != null && (
+                          <span
+                            className={css({ ml: '2', fontSize: 'xs', color: 'foregroundMuted' })}
+                          >
+                            Paid {c.purchaseAmount} {c.purchaseCurrency ?? ''}
+                          </span>
+                        )}
+                        {c.offerAmount != null && (
+                          <span
+                            className={css({ ml: '2', fontSize: 'xs', color: 'foregroundMuted' })}
+                          >
+                            Offer {c.offerAmount} {c.offerCurrency ?? ''}
+                          </span>
+                        )}
+                        {c.soldAt != null && (
+                          <span
+                            className={css({
+                              display: 'block',
+                              mt: '1',
+                              fontSize: 'xs',
+                              color: 'accentGreen',
+                              fontWeight: 'medium',
+                            })}
+                          >
+                            Sold {c.soldAmount} {c.soldCurrency ?? ''} ·{' '}
+                            {new Date(c.soldAt).toLocaleString()}
+                          </span>
+                        )}
+                        {c.classificationNotes && (
+                          <p className={copyMetaClass}>{c.classificationNotes}</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => openSellModal(c)}
+                      >
+                        {c.soldAt != null ? 'Edit sale' : 'Mark sold'}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <form
+              className={addCopyFormClass}
+              onSubmit={(ev) => {
+                ev.preventDefault()
+                setCopyError(null)
+                addCopy.mutate()
+              }}
+            >
+              {copyError && <p className={errorClass}>{copyError}</p>}
+              <div className={formRowClass}>
+                <div className={fieldClass}>
+                  <Label htmlFor="classification">Classification</Label>
+                  <Select
+                    id="classification"
+                    value={classification}
+                    onChange={(ev) => setClassification(ev.target.value as CopyClassification)}
+                  >
+                    {CLASSIFICATION_OPTIONS.map((x) => (
+                      <option key={x} value={x}>
+                        {x.replace(/_/g, ' ')}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className={css({ flex: '2', minWidth: '120px' })}>
+                  <Label htmlFor="notes">Notes (optional)</Label>
+                  <input
+                    id="notes"
+                    value={notes}
+                    onChange={(ev) => setNotes(ev.target.value)}
+                    placeholder="e.g. mild box wear"
+                    className={textInputClass}
+                  />
+                </div>
+              </div>
+              <div>
+                <Button type="submit" variant="primary" size="sm" disabled={addCopy.isPending}>
+                  {addCopy.isPending ? 'Adding…' : '+ Add copy'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </Card>
+      </div>
+
+      {sellCopyId !== null && (
+        <div
+          className={overlayClass}
+          role="presentation"
+          onClick={(ev) => {
+            if (ev.target === ev.currentTarget) closeSellModal()
+          }}
+        >
+          <div
+            className={modalPanelClass}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sell-dialog-title"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <h2 id="sell-dialog-title" className={modalTitleClass}>
+              {sellingCopy?.soldAt != null ? 'Edit sale' : 'Mark copy as sold'}
+            </h2>
+            <form
+              onSubmit={(ev) => {
+                ev.preventDefault()
+                setSellError(null)
+                markSold.mutate()
+              }}
+            >
+              {sellError && <p className={errorBannerClass}>{sellError}</p>}
+              <div className={css({ display: 'flex', flexDir: 'column', gap: '3' })}>
+                <div>
+                  <Label htmlFor="sell-amount">Sale amount</Label>
+                  <input
+                    id="sell-amount"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={sellAmount}
+                    onChange={(ev) => setSellAmount(ev.target.value)}
+                    placeholder="0.00"
+                    required
+                    className={textInputClass}
+                  />
+                </div>
+                <div className={formRowClass}>
+                  <div className={fieldClass}>
+                    <Label htmlFor="sell-currency">Currency</Label>
+                    <input
+                      id="sell-currency"
+                      type="text"
+                      maxLength={3}
+                      value={sellCurrency}
+                      onChange={(ev) => setSellCurrency(ev.target.value.toUpperCase())}
+                      className={textInputClass}
+                    />
+                  </div>
+                  <div className={css({ flex: '2', minWidth: '140px' })}>
+                    <Label htmlFor="sell-when">Sold at</Label>
+                    <input
+                      id="sell-when"
+                      type="datetime-local"
+                      value={sellDatetimeLocal}
+                      onChange={(ev) => setSellDatetimeLocal(ev.target.value)}
+                      className={textInputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className={modalActionsClass}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => closeSellModal()}
+                  disabled={markSold.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" disabled={markSold.isPending}>
+                  {markSold.isPending ? 'Saving…' : 'Save sale'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

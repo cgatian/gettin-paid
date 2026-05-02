@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "WebFetch(domain:railway.com)",
+      "WebSearch",
+      "WebFetch(domain:panda-css.com)",
+      "Bash(pnpm *)",
+      "Bash(node *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3000\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(taskkill /F /PID 19796)",
+      "PowerShell(Stop-Process *)"
+    ]
+  }
+}

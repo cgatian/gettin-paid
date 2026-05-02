@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CopyClassification {
+  SEALED
+  CIB
+  INCOMPLETE_BOX
+  LOOSE
+  GRADED_SLAB
+  OTHER
+}
+
+/// PriceCharting Console ID table (static). Seeded by migration from api-documentation#console-ids.
+model PriceChartingConsole {
+  id           String @id
+  name         String
+  displayOrder Int
+
+  editions GameEdition[]
+}
+
+model GameEdition {
+  id                       String   @id @default(uuid())
+  upc                      String   @unique
+  title                    String
+  publisher                String?
+  priceChartingProductId   String?  @unique
+  /// PriceCharting Console ID (G-codes); FK to PriceChartingConsole
+  priceChartingConsoleId   String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  priceChartingConsole PriceChartingConsole? @relation(fields: [priceChartingConsoleId], references: [id])
+
+  copies   OwnedCopy[]
+  snapshot PriceChartingProductSnapshot?
+
+  @@index([priceChartingConsoleId])
+}
+
+model OwnedCopy {
+  id                   String             @id @default(uuid())
+  editionId            String
+  edition              GameEdition        @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  copyClassification   CopyClassification
+  classificationNotes  String?
+  purchaseAmount       Decimal?           @db.Decimal(12, 2)
+  purchaseCurrency     String?
+  purchaseDate         DateTime?
+  offerAmount          Decimal?           @db.Decimal(12, 2)
+  offerCurrency        String?
+  soldAmount           Decimal?           @db.Decimal(12, 2)
+  soldCurrency         String?
+  soldAt               DateTime?
+
+  @@index([editionId])
+}
+
+/// Latest PriceCharting GET /api/product row — amounts are USD pennies (integer) per PriceCharting docs
+model PriceChartingProductSnapshot {
+  id          String   @id @default(uuid())
+  editionId   String   @unique
+  edition     GameEdition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  fetchedAt   DateTime @default(now())
+
+  priceChartingId String?
+  productName     String?
+  consoleName     String?
+  genre           String?
+  releaseDate     DateTime? @db.Date
+  upc             String?
+  asin            String?
+  epid            String?
+
+  loosePrice       Int?
+  cibPrice         Int?
+  newPrice         Int?
+  gradedPrice      Int?
+  boxOnlyPrice     Int?
+  manualOnlyPrice  Int?
+  gamestopPrice    Int?
+  bgs10Price       Int?
+  condition17Price Int?
+  condition18Price Int?
+
+  retailLooseBuy  Int?
+  retailLooseSell Int?
+  retailCibBuy    Int?
+  retailCibSell   Int?
+  retailNewBuy    Int?
+  retailNewSell   Int?
+
+  salesVolume Int?
+
+  raw Json?
+}

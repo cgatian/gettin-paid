@@ -1,0 +1,35 @@
+{
+  "name": "gettin-paid",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "postinstall": "pnpm --filter @gettin-paid/backend exec prisma generate",
+    "dev": "pnpm --filter @gettin-paid/frontend --filter @gettin-paid/backend --parallel dev",
+    "dev:frontend": "pnpm --filter @gettin-paid/frontend dev",
+    "dev:api": "pnpm --filter @gettin-paid/backend dev",
+    "dev:all": "pnpm dev",
+    "build": "pnpm --filter @gettin-paid/shared build && pnpm --filter @gettin-paid/backend build && pnpm --filter @gettin-paid/frontend build",
+    "build:frontend": "pnpm --filter @gettin-paid/frontend build",
+    "build:backend": "pnpm --filter @gettin-paid/backend build",
+    "start": "pnpm --filter @gettin-paid/frontend start",
+    "format": "pnpm exec biome format",
+    "lint": "pnpm exec biome lint",
+    "check": "pnpm exec biome check",
+    "test": "pnpm --filter @gettin-paid/frontend test",
+    "db:migrate": "pnpm --filter @gettin-paid/backend exec prisma migrate deploy",
+    "db:generate": "pnpm --filter @gettin-paid/backend exec prisma generate"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lightningcss",
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma"
+    ]
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.5"
+  }
+}
