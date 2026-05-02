@@ -808,7 +808,20 @@ function EditionDetail() {
 		setEditCopyId(null);
 		setEditCopyError(null);
 		setSellCopyId(c.id);
-		setSellAmount(c.soldAmount ?? "");
+		const edition = q.data;
+		if (c.soldAt != null && c.soldAmount?.trim()) {
+			setSellAmount(formatStoredOfferForInput(c.soldAmount));
+		} else {
+			let initial = formatStoredOfferForInput(c.offerAmount);
+			if (!initial && edition?.snapshot) {
+				const cents = baseOfferCentsPreview(
+					snapshotToPricingPreview(edition.snapshot),
+					c.copyClassification,
+				);
+				if (cents != null) initial = (cents / 100).toFixed(2);
+			}
+			setSellAmount(initial);
+		}
 		setSellDateOnly(
 			c.soldAt
 				? isoToDatetimeLocal(c.soldAt).slice(0, 10)
@@ -948,6 +961,73 @@ function EditionDetail() {
 		});
 	}, [q.data?.copies]);
 
+	const sellingCopy = useMemo(() => {
+		const edition = q.data;
+		if (!edition || sellCopyId === null) return undefined;
+		return edition.copies.find((c) => c.id === sellCopyId);
+	}, [q.data, sellCopyId]);
+
+	const sellAmountNumeric = useMemo(() => {
+		const t = sellAmount.trim();
+		if (!t) return null;
+		const n = Number.parseFloat(t.replace(/,/g, ""));
+		return Number.isFinite(n) ? n : null;
+	}, [sellAmount]);
+
+	const sellSliderAnchorDollars = useMemo(() => {
+		const c = sellingCopy;
+		const edition = q.data;
+		if (!c || !edition) return null;
+		if (c.soldAt != null && c.soldAmount?.trim()) {
+			const sold = Number.parseFloat(c.soldAmount.replace(/,/g, ""));
+			if (Number.isFinite(sold) && sold > 0) return sold;
+		}
+		const offerTrim = c.offerAmount?.trim();
+		if (offerTrim) {
+			const o = Number.parseFloat(offerTrim.replace(/,/g, ""));
+			if (Number.isFinite(o) && o > 0) return o;
+		}
+		if (edition.snapshot) {
+			const cents = baseOfferCentsPreview(
+				snapshotToPricingPreview(edition.snapshot),
+				c.copyClassification,
+			);
+			if (cents != null) return cents / 100;
+		}
+		return null;
+	}, [sellingCopy, q.data]);
+
+	const sellSliderDollars = useMemo(() => {
+		const anchor = sellSliderAnchorDollars;
+		const parsed = sellAmountNumeric;
+		let minD: number;
+		let maxD: number;
+		if (anchor != null && anchor > 0) {
+			minD = Math.max(1, Math.floor(anchor * 0.5));
+			maxD = Math.max(Math.ceil(anchor * 2), minD + 1);
+		} else {
+			minD = 1;
+			maxD = 500;
+		}
+		const raw =
+			parsed != null && Number.isFinite(parsed)
+				? Math.round(parsed)
+				: anchor != null && anchor > 0
+					? Math.round(anchor)
+					: minD;
+		const value = Math.min(maxD, Math.max(minD, raw));
+		return { minD, maxD, value };
+	}, [sellSliderAnchorDollars, sellAmountNumeric]);
+
+	useEffect(() => {
+		if (sellCopyId === null) return;
+		if (sellAmountNumeric == null) return;
+		const rounded = Math.round(sellAmountNumeric);
+		if (rounded !== sellSliderDollars.value) {
+			setSellAmount(sellSliderDollars.value.toFixed(2));
+		}
+	}, [sellCopyId, sellSliderDollars.value, sellAmountNumeric]);
+
 	if (q.isLoading) {
 		return <p className={stateTextClass}>Loading…</p>;
 	}
@@ -970,8 +1050,6 @@ function EditionDetail() {
 	const priceChartingBrowseUrl = priceChartingProductBrowseUrl(
 		e.priceChartingProductId,
 	);
-	const sellingCopy =
-		sellCopyId !== null ? e.copies.find((c) => c.id === sellCopyId) : undefined;
 	const editingCopy =
 		editCopyId !== null ? e.copies.find((c) => c.id === editCopyId) : undefined;
 
@@ -1867,6 +1945,49 @@ function EditionDetail() {
 										required
 										className={textInputClass}
 									/>
+									<p
+										className={css({
+											fontSize: "xs",
+											color: "foregroundMuted",
+											mt: "1",
+											mb: "0",
+										})}
+									>
+										{sellingCopy?.soldAt != null
+											? "Adjust the recorded sale amount."
+											: sellSliderAnchorDollars != null
+												? "Defaults to your proposed price (FMV if unset). Use the slider for quick $1 steps."
+												: "Use the slider for quick $1 steps."}
+									</p>
+									<input
+										type="range"
+										className={css({
+											w: "100%",
+											mt: "2",
+											accentColor: "accent",
+											cursor: "pointer",
+										})}
+										min={sellSliderDollars.minD}
+										max={sellSliderDollars.maxD}
+										step={1}
+										value={sellSliderDollars.value}
+										aria-label="Adjust sale amount in whole dollars"
+										onChange={(ev) =>
+											setSellAmount(Number(ev.target.value).toFixed(2))
+										}
+									/>
+									<p
+										className={css({
+											fontSize: "xs",
+											color: "foregroundMuted",
+											mt: "1",
+											mb: "0",
+											fontVariantNumeric: "tabular-nums",
+										})}
+									>
+										${sellSliderDollars.minD} – ${sellSliderDollars.maxD}{" "}
+										· step $1
+									</p>
 								</div>
 								<div>
 									<Label htmlFor="sell-date">Sold date</Label>
