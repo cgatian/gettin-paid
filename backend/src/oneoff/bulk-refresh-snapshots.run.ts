@@ -51,17 +51,27 @@ async function refreshOne(
 			data = await http.fetchProduct({
 				id: edition.priceChartingProductId,
 			});
-		} else {
+		} else if (edition.upc && edition.priceChartingConsoleId) {
+			data = await http.fetchProduct({
+				upc: edition.upc,
+				console: edition.priceChartingConsoleId,
+			});
+		} else if (edition.upc) {
 			data = await http.fetchProduct({ upc: edition.upc });
+		} else {
+			console.error(
+				`Skip ${edition.title}: no PriceCharting product id or UPC`,
+			);
+			return;
 		}
 	} catch (e) {
-		console.error(`Skip ${edition.upc}: ${e}`);
+		console.error(`Skip ${edition.upc ?? edition.id}: ${e}`);
 		return;
 	}
 
 	const err = getPriceChartingErrorMessage(data);
 	if (data.status === "error" || err) {
-		console.error(`Skip ${edition.upc}: ${err ?? "error"}`);
+		console.error(`Skip ${edition.upc ?? edition.id}: ${err ?? "error"}`);
 		return;
 	}
 
@@ -94,7 +104,7 @@ async function refreshOne(
 			},
 		}),
 	]);
-	console.log(`OK ${edition.upc} ${edition.title}`);
+	console.log(`OK ${edition.upc ?? "(no UPC)"} ${edition.title}`);
 }
 
 async function main() {

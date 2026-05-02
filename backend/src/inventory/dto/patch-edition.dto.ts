@@ -4,15 +4,17 @@ import {
 	Matches,
 	MaxLength,
 	MinLength,
+	ValidateIf,
 } from "class-validator";
 
 export class PatchEditionDto {
-	@IsOptional()
+	/** Omit, or send null / empty string to clear */
+	@ValidateIf((_o, v) => v !== undefined && v !== null && String(v).trim() !== "")
 	@IsString()
 	@MinLength(8)
 	@MaxLength(14)
 	@Matches(/^\d+$/)
-	upc?: string;
+	upc?: string | null;
 
 	@IsOptional()
 	@IsString()

@@ -9,14 +9,17 @@ import {
 	Matches,
 	MaxLength,
 	MinLength,
+	ValidateIf,
 } from "class-validator";
 
 export class CreateEditionDto {
+	/** When omitted or blank, PriceCharting match uses title + console only */
+	@ValidateIf((_o, v) => v !== undefined && v !== null && String(v).trim() !== "")
 	@IsString()
 	@MinLength(8)
 	@MaxLength(14)
 	@Matches(/^\d+$/)
-	upc!: string;
+	upc?: string;
 
 	@IsString()
 	@MinLength(1)

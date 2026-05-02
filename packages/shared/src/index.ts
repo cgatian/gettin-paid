@@ -93,7 +93,7 @@ export type EditionListActiveCopyDto = {
 /** Platform = PriceCharting console id (e.g. G8, G17). See PRICECHARTING_CONSOLES */
 export type GameEditionDto = {
 	id: string;
-	upc: string;
+	upc: string | null;
 	title: string;
 	publisher: string | null;
 	priceChartingProductId: string | null;
@@ -133,6 +133,11 @@ export type PriceChartingPricingPreviewDto = {
 	newPrice: number | null;
 	gradedPrice: number | null;
 	salesVolume: number | null;
+};
+
+/** GET /api/product-cover-preview — absolute URL for product art from PriceCharting HTML */
+export type PriceChartingProductCoverPreviewDto = {
+	previewImageUrl: string | null;
 };
 
 export type PriceChartingSnapshotDto = {
@@ -186,7 +191,7 @@ export type BulkRefreshMarketResultDto = {
 	failures: {
 		editionId: string;
 		title: string;
-		upc: string;
+		upc: string | null;
 		message: string;
 	}[];
 };
@@ -200,7 +205,7 @@ export type FetchAllCoversResultDto = {
 	failures: {
 		editionId: string;
 		title: string;
-		upc: string;
+		upc: string | null;
 		message: string;
 	}[];
 };

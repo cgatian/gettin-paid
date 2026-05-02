@@ -8,20 +8,16 @@ export function formatPcCents(value: number | null | undefined): string {
 	}).format(dollars);
 }
 
-/** Decimal amount string + ISO 4217 code from the API (inventory copy offer / purchase). */
-export function formatMoneyAmount(
-	amount: string,
-	currency: string | null | undefined,
-): string {
-	const code = (currency?.trim().toUpperCase() || "USD").slice(0, 3);
+/** Decimal amount string from the API; displayed as USD. */
+export function formatMoneyAmount(amount: string): string {
 	const n = Number.parseFloat(amount);
-	if (!Number.isFinite(n)) return `${amount} ${code}`;
+	if (!Number.isFinite(n)) return amount;
 	try {
 		return new Intl.NumberFormat(undefined, {
 			style: "currency",
-			currency: code.length === 3 ? code : "USD",
+			currency: "USD",
 		}).format(n);
 	} catch {
-		return `${amount} ${code}`;
+		return amount;
 	}
 }

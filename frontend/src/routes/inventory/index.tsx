@@ -561,10 +561,7 @@ function InventoryList() {
 													)}
 												>
 													{row.offerAmount != null
-														? formatMoneyAmount(
-																row.offerAmount,
-																row.offerCurrency,
-															)
+														? formatMoneyAmount(row.offerAmount)
 														: "—"}
 												</span>
 											</div>

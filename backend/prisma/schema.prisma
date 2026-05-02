@@ -27,7 +27,7 @@ model PriceChartingConsole {
 
 model GameEdition {
   id                       String   @id @default(uuid())
-  upc                      String   @unique
+  upc                      String?  @unique
   title                    String
   publisher                String?
   priceChartingProductId   String?  @unique

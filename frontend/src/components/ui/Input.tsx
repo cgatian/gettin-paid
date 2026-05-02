@@ -1,10 +1,11 @@
 import { Input as BaseInput, Select as BaseSelect } from "@base-ui/react";
 import { ChevronDown } from "lucide-react";
-import type {
-	InputHTMLAttributes,
-	LabelHTMLAttributes,
-	ReactNode,
-	RefObject,
+import {
+	forwardRef,
+	type InputHTMLAttributes,
+	type LabelHTMLAttributes,
+	type ReactNode,
+	type RefObject,
 } from "react";
 import { css, cx } from "styled-system/css";
 
@@ -110,9 +111,13 @@ interface LabelProps extends LabelHTMLAttributes<HTMLLabelElement> {
 	children: ReactNode;
 }
 
-export function Input({ className, ...props }: InputProps) {
-	return <BaseInput className={cx(inputClass, className)} {...props} />;
-}
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+	function Input({ className, ...props }, ref) {
+		return (
+			<BaseInput ref={ref} className={cx(inputClass, className)} {...props} />
+		);
+	},
+);
 
 export function Select({
 	id,

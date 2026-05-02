@@ -4,6 +4,7 @@ import {
 	findBestPriceChartingConsoleIdFromApiConsoleName,
 	POPULAR_PRICECHARTING_CONSOLE_IDS,
 	type PriceChartingPricingPreviewDto,
+	type PriceChartingProductCoverPreviewDto,
 	type PriceChartingProductSuggestionDto,
 	snapshotFmvCentsForClassification,
 } from "@gettin-paid/shared";
@@ -11,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Camera } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { css } from "styled-system/css";
+import { css, cx } from "styled-system/css";
 import { Button, buttonVariants } from "#/components/ui/Button";
 import {
 	Card,
@@ -51,7 +52,42 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 	return debounced;
 }
 
-const pageClass = css({ p: "6", maxWidth: "600px" });
+/** Mobile: fills visible main area; inner scroll + fixed action bar. Desktop: normal flow. */
+const addPageShellClass = css({
+	w: "100%",
+	maxWidth: "600px",
+	display: { base: "flex", sm: "block" },
+	flexDir: "column",
+	h: {
+		base: "calc(100dvh - var(--sizes-topbar) - env(safe-area-inset-bottom, 0px))",
+		sm: "auto",
+	},
+	maxH: {
+		base: "calc(100dvh - var(--sizes-topbar) - env(safe-area-inset-bottom, 0px))",
+		sm: "none",
+	},
+	minH: { base: "0", sm: "auto" },
+	overflow: { base: "hidden", sm: "visible" },
+});
+
+const addPageScrollClass = css({
+	flex: { base: "1", sm: "none" },
+	minH: { base: "0", sm: "auto" },
+	overflowY: { base: "auto", sm: "visible" },
+	WebkitOverflowScrolling: { base: "touch", sm: "auto" },
+	overscrollBehavior: { base: "contain", sm: "auto" },
+	/** Flush to viewport edges on mobile; horizontal safe-area only where the device needs it. */
+	pt: { base: "0", sm: "0" },
+	pb: { base: "0", sm: "0" },
+	pl: { base: "env(safe-area-inset-left, 0px)", sm: "0" },
+	pr: { base: "env(safe-area-inset-right, 0px)", sm: "0" },
+});
+
+const addPageScrollInnerClass = css({
+	pb: { sm: "calc({spacing.6} + env(safe-area-inset-bottom, 0px))" },
+	px: { sm: "6" },
+	pt: { sm: "6" },
+});
 
 const backLinkClass = css({
 	display: "inline-flex",
@@ -106,11 +142,36 @@ const lowOfferWarningClass = css({
 	py: "2",
 });
 
-const actionRowClass = css({
+const formActionsInnerClass = css({
 	display: "flex",
-	alignItems: "center",
+	flexDir: { base: "column-reverse", sm: "row" },
+	flexWrap: "wrap",
+	alignItems: { base: "stretch", sm: "center" },
 	gap: "3",
 	pt: "2",
+	"& a, & button": {
+		width: { base: "100%", sm: "auto" },
+		justifyContent: { base: "center", sm: "flex-start" },
+	},
+});
+
+const desktopFormActionsClass = css({
+	display: { base: "none", sm: "flex" },
+});
+
+const mobileFormActionsBarClass = css({
+	display: { base: "flex", sm: "none" },
+	flexDir: "column-reverse",
+	flexShrink: "0",
+	gap: "3",
+	pt: "3",
+	pl: "env(safe-area-inset-left, 0px)",
+	pr: "env(safe-area-inset-right, 0px)",
+	pb: "calc({spacing.3} + env(safe-area-inset-bottom, 0px))",
+	borderTopWidth: "1px",
+	borderTopStyle: "solid",
+	borderTopColor: "border",
+	bg: "surface",
 });
 
 const suggestPanelClass = css({
@@ -165,6 +226,28 @@ const priceDtClass = css({
 	margin: "0",
 });
 const priceDdClass = css({ margin: "0", color: "foreground" });
+
+const coverThumbWrapClass = css({
+	flexShrink: "0",
+	width: "72px",
+	height: "72px",
+	borderRadius: "btn",
+	borderWidth: "1px",
+	borderStyle: "solid",
+	borderColor: "border",
+	bg: "surface",
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "center",
+	overflow: "hidden",
+});
+
+const coverThumbImgClass = css({
+	width: "100%",
+	height: "100%",
+	objectFit: "contain",
+	display: "block",
+});
 
 function AddGame() {
 	const navigate = useNavigate();
@@ -266,11 +349,12 @@ function AddGame() {
 	const [copyNotes, setCopyNotes] = useState("");
 	const [purchaseAmount, setPurchaseAmount] = useState("");
 	const [offerAmount, setOfferAmount] = useState("");
-	const [offerCurrency, setOfferCurrency] = useState("USD");
 	const [selectedPcProductId, setSelectedPcProductId] = useState<string | null>(
 		null,
 	);
 	const [formError, setFormError] = useState<string | null>(null);
+	const [coverPreviewLoadFailed, setCoverPreviewLoadFailed] = useState(false);
+	const titleInputRef = useRef<HTMLInputElement>(null);
 
 	const pricingPreviewQuery = useQuery({
 		queryKey: ["product-pricing", selectedPcProductId] as const,
@@ -284,6 +368,23 @@ function AddGame() {
 		enabled: Boolean(selectedPcProductId),
 		staleTime: 60_000,
 	});
+
+	const coverPreviewQuery = useQuery({
+		queryKey: ["product-cover-preview", selectedPcProductId] as const,
+		queryFn: () => {
+			const sp = new URLSearchParams();
+			sp.set("productId", selectedPcProductId ?? "");
+			return apiFetch<PriceChartingProductCoverPreviewDto>(
+				`/product-cover-preview?${sp.toString()}`,
+			);
+		},
+		enabled: Boolean(selectedPcProductId),
+		staleTime: 86_400_000,
+	});
+
+	useEffect(() => {
+		setCoverPreviewLoadFailed(false);
+	}, [selectedPcProductId]);
 
 	const baseOfferCents = useMemo(() => {
 		const d = pricingPreviewQuery.data;
@@ -304,7 +405,6 @@ function AddGame() {
 		debouncedTitle.trim().length >= 2 &&
 		Boolean(priceChartingConsoleId);
 
-	const offerCurrencyNorm = offerCurrency.trim().toUpperCase() || "USD";
 	const offerAmountNumeric = useMemo(() => {
 		const t = offerAmount.trim();
 		if (!t) return null;
@@ -312,9 +412,7 @@ function AddGame() {
 		return Number.isFinite(n) ? n : null;
 	}, [offerAmount]);
 	const showLowOfferWarning =
-		offerAmountNumeric != null &&
-		offerAmountNumeric < 5 &&
-		offerCurrencyNorm === "USD";
+		offerAmountNumeric != null && offerAmountNumeric < 5;
 
 	const offerSliderCents = useMemo(() => {
 		if (baseOfferCents == null) return null;
@@ -351,14 +449,35 @@ function AddGame() {
 		setOfferAmount("");
 	}
 
-	const create = useMutation({
+	function resetAddForm() {
+		setUpc("");
+		setTitle("");
+		setPriceChartingConsoleId(POPULAR_PRICECHARTING_CONSOLE_IDS[0] ?? "G8");
+		setPublisher("");
+		setCopyClassification(CopyClassification.CIB);
+		setCopyNotes("");
+		setPurchaseAmount("");
+		setOfferAmount("");
+		setSelectedPcProductId(null);
+		setSuggestOpen(false);
+		setScanError(null);
+		setFormError(null);
+		queueMicrotask(() => titleInputRef.current?.focus());
+	}
+
+	type CreateEditionVars = { stayOnPage?: boolean } | undefined;
+
+	const create = useMutation<EditionDetailDto, Error, CreateEditionVars>({
 		mutationFn: () => {
+			const trimmed = upc.trim();
 			const digits = upc.replace(/\D/g, "");
-			if (digits.length < 8) throw new Error("UPC must be at least 8 digits");
+			if (trimmed.length > 0 && digits.length < 8) {
+				throw new Error("UPC must be at least 8 digits when provided");
+			}
 			return apiFetch<EditionDetailDto>("/editions", {
 				method: "POST",
 				body: JSON.stringify({
-					upc: digits,
+					...(digits.length >= 8 ? { upc: digits } : {}),
 					title: title.trim(),
 					priceChartingConsoleId,
 					publisher: publisher.trim() || undefined,
@@ -371,15 +490,19 @@ function AddGame() {
 					...(offerAmount.trim()
 						? {
 								initialOfferAmount: offerAmount.trim(),
-								initialOfferCurrency: offerCurrency.trim() || "USD",
+								initialOfferCurrency: "USD",
 							}
 						: {}),
 				}),
 			});
 		},
-		onSuccess: (edition) => {
+		onSuccess: (edition, variables) => {
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
 			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			if (variables?.stayOnPage) {
+				resetAddForm();
+				return;
+			}
 			void navigate({
 				to: "/inventory/$editionId",
 				params: { editionId: edition.id },
@@ -391,37 +514,41 @@ function AddGame() {
 	});
 
 	return (
-		<div className={pageClass}>
-			<Link to="/inventory" className={backLinkClass}>
-				← Inventory
-			</Link>
+		<div className={addPageShellClass}>
+			<div className={addPageScrollClass}>
+				<div className={addPageScrollInnerClass}>
+					<Link to="/inventory" className={backLinkClass}>
+						← Inventory
+					</Link>
 
-			<h1 className={pageTitleClass}>Add a game</h1>
-			<Card>
-				<div className={cardHeader}>
-					<span
-						className={css({
-							fontSize: "base",
-							fontWeight: "medium",
-							color: "foreground",
-						})}
-					>
-						Edition details
-					</span>
-				</div>
-				<div className={cardBody}>
-					<form
-						className={formBodyClass}
-						onSubmit={(ev) => {
-							ev.preventDefault();
-							setFormError(null);
-							create.mutate();
-						}}
-					>
+					<h1 className={pageTitleClass}>Add a game</h1>
+					<Card>
+						<div className={cardHeader}>
+							<span
+								className={css({
+									fontSize: "base",
+									fontWeight: "medium",
+									color: "foreground",
+								})}
+							>
+								Edition details
+							</span>
+						</div>
+						<div className={cardBody}>
+							<form
+								id="add-game-form"
+								className={formBodyClass}
+								onSubmit={(ev) => {
+									ev.preventDefault();
+									setFormError(null);
+									create.mutate(undefined);
+								}}
+							>
 						{formError && <p className={errorClass}>{formError}</p>}
 
 						<Field label="Title" htmlFor="title">
 							<Input
+								ref={titleInputRef}
 								id="title"
 								type="text"
 								autoComplete="off"
@@ -523,90 +650,142 @@ function AddGame() {
 
 						{selectedPcProductId && (
 							<div className={formGroupClass} aria-live="polite">
-								<span
+								<div
 									className={css({
-										fontSize: "sm",
-										fontWeight: "medium",
-										color: "foreground",
+										display: "flex",
+										gap: "3",
+										alignItems: "flex-start",
 									})}
 								>
-									PriceCharting (FMV)
-								</span>
-								{pricingPreviewQuery.isFetching && (
-									<p
-										className={css({
-											fontSize: "sm",
-											color: "foregroundMuted",
-											mb: "0",
-										})}
-									>
-										Loading prices…
-									</p>
-								)}
-								{!pricingPreviewQuery.isFetching &&
-									pricingPreviewQuery.isError && (
-										<p
-											className={css({
-												fontSize: "sm",
-												color: "danger",
-												mb: "0",
-											})}
-										>
-											Could not load prices (check API token / network).
-										</p>
-									)}
-								{!pricingPreviewQuery.isFetching &&
-									!pricingPreviewQuery.isError &&
-									pricingPreviewQuery.data && (
-										<>
-											{(pricingPreviewQuery.data.productName ||
-												pricingPreviewQuery.data.consoleName) && (
-												<p
+									{(coverPreviewQuery.isPending ||
+										(Boolean(coverPreviewQuery.data?.previewImageUrl) &&
+											!coverPreviewLoadFailed)) && (
+										<div className={coverThumbWrapClass}>
+											{coverPreviewQuery.isPending ? (
+												<span
 													className={css({
 														fontSize: "xs",
 														color: "foregroundMuted",
-														m: "0",
 													})}
 												>
-													{pricingPreviewQuery.data.productName}
-													{pricingPreviewQuery.data.consoleName && (
-														<> · {pricingPreviewQuery.data.consoleName}</>
-													)}
+													…
+												</span>
+											) : coverPreviewQuery.data?.previewImageUrl ? (
+												<img
+													src={coverPreviewQuery.data.previewImageUrl}
+													alt=""
+													className={coverThumbImgClass}
+													loading="lazy"
+													decoding="async"
+													referrerPolicy="no-referrer"
+													onError={() => setCoverPreviewLoadFailed(true)}
+												/>
+											) : null}
+										</div>
+									)}
+									<div
+										className={css({
+											flex: "1",
+											minWidth: "0",
+											display: "flex",
+											flexDir: "column",
+											gap: "2",
+										})}
+									>
+										<span
+											className={css({
+												fontSize: "sm",
+												fontWeight: "medium",
+												color: "foreground",
+											})}
+										>
+											PriceCharting (FMV)
+										</span>
+										{pricingPreviewQuery.isFetching && (
+											<p
+												className={css({
+													fontSize: "sm",
+													color: "foregroundMuted",
+													mb: "0",
+												})}
+											>
+												Loading prices…
+											</p>
+										)}
+										{!pricingPreviewQuery.isFetching &&
+											pricingPreviewQuery.isError && (
+												<p
+													className={css({
+														fontSize: "sm",
+														color: "danger",
+														mb: "0",
+													})}
+												>
+													Could not load prices (check API token / network).
 												</p>
 											)}
-											<dl className={priceDlClass}>
-												<dt className={priceDtClass}>Loose</dt>
-												<dd className={priceDdClass}>
-													{formatPcCents(pricingPreviewQuery.data.loosePrice)}
-												</dd>
-												<dt className={priceDtClass}>CIB</dt>
-												<dd className={priceDdClass}>
-													{formatPcCents(pricingPreviewQuery.data.cibPrice)}
-												</dd>
-												<dt className={priceDtClass}>New</dt>
-												<dd className={priceDdClass}>
-													{formatPcCents(pricingPreviewQuery.data.newPrice)}
-												</dd>
-												<dt className={priceDtClass}>Graded</dt>
-												<dd className={priceDdClass}>
-													{formatPcCents(pricingPreviewQuery.data.gradedPrice)}
-												</dd>
-												{pricingPreviewQuery.data.salesVolume != null && (
-													<>
-														<dt className={priceDtClass}>Sales vol.</dt>
+										{!pricingPreviewQuery.isFetching &&
+											!pricingPreviewQuery.isError &&
+											pricingPreviewQuery.data && (
+												<>
+													{(pricingPreviewQuery.data.productName ||
+														pricingPreviewQuery.data.consoleName) && (
+														<p
+															className={css({
+																fontSize: "xs",
+																color: "foregroundMuted",
+																m: "0",
+															})}
+														>
+															{pricingPreviewQuery.data.productName}
+															{pricingPreviewQuery.data.consoleName && (
+																<> · {pricingPreviewQuery.data.consoleName}</>
+															)}
+														</p>
+													)}
+													<dl className={priceDlClass}>
+														<dt className={priceDtClass}>Loose</dt>
 														<dd className={priceDdClass}>
-															{pricingPreviewQuery.data.salesVolume.toLocaleString()}
+															{formatPcCents(
+																pricingPreviewQuery.data.loosePrice,
+															)}
 														</dd>
-													</>
-												)}
-											</dl>
-											<p className={mutedTextClass}>
-												Offer price below starts at the PriceCharting value for
-												your selected condition; use the slider or type to
-												adjust.
-											</p>
-										</>
-									)}
+														<dt className={priceDtClass}>CIB</dt>
+														<dd className={priceDdClass}>
+															{formatPcCents(
+																pricingPreviewQuery.data.cibPrice,
+															)}
+														</dd>
+														<dt className={priceDtClass}>New</dt>
+														<dd className={priceDdClass}>
+															{formatPcCents(
+																pricingPreviewQuery.data.newPrice,
+															)}
+														</dd>
+														<dt className={priceDtClass}>Graded</dt>
+														<dd className={priceDdClass}>
+															{formatPcCents(
+																pricingPreviewQuery.data.gradedPrice,
+															)}
+														</dd>
+														{pricingPreviewQuery.data.salesVolume != null && (
+															<>
+																<dt className={priceDtClass}>Sales vol.</dt>
+																<dd className={priceDdClass}>
+																	{pricingPreviewQuery.data.salesVolume.toLocaleString()}
+																</dd>
+															</>
+														)}
+													</dl>
+													<p className={mutedTextClass}>
+														Offer price below starts at the PriceCharting value
+														for your selected condition; use the slider or type to
+														adjust.
+													</p>
+												</>
+											)}
+									</div>
+								</div>
 							</div>
 						)}
 
@@ -628,7 +807,22 @@ function AddGame() {
 							/>
 						</Field>
 
-						<Field label="UPC (8–14 digits)" htmlFor="upc">
+						<Field
+							label={
+								<>
+									UPC{" "}
+									<span
+										className={css({
+											color: "foregroundMuted",
+											fontWeight: "normal",
+										})}
+									>
+										(optional, 8–14 digits)
+									</span>
+								</>
+							}
+							htmlFor="upc"
+						>
 							<div
 								className={css({
 									display: "flex",
@@ -643,7 +837,6 @@ function AddGame() {
 									autoComplete="off"
 									value={upc}
 									onChange={(e) => setUpc(e.target.value)}
-									required
 									className={css({ flex: "1", width: "auto" })}
 								/>
 								<Button
@@ -742,37 +935,15 @@ function AddGame() {
 							</Field>
 
 							<Field label="Asking (optional)" htmlFor="offer-amt">
-								<div
-									className={css({
-										display: "flex",
-										gap: "2",
-										alignItems: "stretch",
-									})}
-								>
-									<Input
-										id="offer-amt"
-										type="text"
-										inputMode="decimal"
-										autoComplete="off"
-										value={offerAmount}
-										onChange={(e) => setOfferAmount(e.target.value)}
-										placeholder="0.00"
-										className={css({ flex: "1", minWidth: "0" })}
-									/>
-									<Input
-										id="offer-ccy"
-										type="text"
-										autoComplete="off"
-										value={offerCurrency}
-										onChange={(e) =>
-											setOfferCurrency(e.target.value.toUpperCase().slice(0, 3))
-										}
-										placeholder="USD"
-										maxLength={3}
-										aria-label="Offer currency"
-										className={css({ width: "60px", flexShrink: 0 })}
-									/>
-								</div>
+								<Input
+									id="offer-amt"
+									type="text"
+									inputMode="decimal"
+									autoComplete="off"
+									value={offerAmount}
+									onChange={(e) => setOfferAmount(e.target.value)}
+									placeholder="0.00"
+								/>
 								{offerSliderCents && (
 									<input
 										type="range"
@@ -795,7 +966,7 @@ function AddGame() {
 								{showLowOfferWarning && (
 									<output
 										className={lowOfferWarningClass}
-										htmlFor="offer-amt offer-ccy"
+										htmlFor="offer-amt"
 										aria-live="polite"
 									>
 										Prices under $5 may sell faster but earn less.
@@ -804,24 +975,71 @@ function AddGame() {
 							</Field>
 						</div>
 
-						<div className={actionRowClass}>
-							<Button
-								type="submit"
-								variant="primary"
-								disabled={create.isPending}
-							>
-								{create.isPending ? "Adding..." : "Add"}
-							</Button>
-							<Link
-								to="/inventory"
-								className={buttonVariants({ variant: "ghost", size: "md" })}
-							>
-								Cancel
-							</Link>
+								<div
+									className={cx(formActionsInnerClass, desktopFormActionsClass)}
+								>
+									<Button
+										type="submit"
+										variant="primary"
+										disabled={create.isPending}
+									>
+										{create.isPending ? "Adding..." : "Add"}
+									</Button>
+									<Button
+										type="button"
+										variant="secondary"
+										disabled={create.isPending}
+										onClick={() => {
+											setFormError(null);
+											create.mutate({ stayOnPage: true });
+										}}
+									>
+										{create.isPending ? "Adding..." : "Add and Create Another"}
+									</Button>
+									<Link
+										to="/inventory"
+										className={buttonVariants({
+											variant: "ghost",
+											size: "md",
+										})}
+									>
+										Cancel
+									</Link>
+								</div>
+							</form>
 						</div>
-					</form>
+					</Card>
 				</div>
-			</Card>
+			</div>
+			<div className={mobileFormActionsBarClass}>
+				<div className={formActionsInnerClass}>
+					<Button
+						type="submit"
+						form="add-game-form"
+						variant="primary"
+						disabled={create.isPending}
+					>
+						{create.isPending ? "Adding..." : "Add"}
+					</Button>
+					<Button
+						type="button"
+						variant="secondary"
+						disabled={create.isPending}
+						onClick={() => {
+							setFormError(null);
+							create.mutate({ stayOnPage: true });
+						}}
+					>
+						{create.isPending ? "Adding..." : "Add and Create Another"}
+					</Button>
+					<Link
+						to="/inventory"
+						className={buttonVariants({ variant: "ghost", size: "md" })}
+					>
+						Cancel
+					</Link>
+				</div>
+			</div>
 		</div>
 	);
 }

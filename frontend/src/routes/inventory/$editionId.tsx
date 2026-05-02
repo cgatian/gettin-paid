@@ -24,6 +24,7 @@ import {
 import { Field, Input, inputClass, Label, Select } from "#/components/ui/Input";
 import { apiFetch, apiFetchPost, getApiBase } from "#/lib/api";
 import { formatMoneyAmount, formatPcCents } from "#/lib/money";
+import { playSaleSavedConfetti } from "#/lib/saleConfetti";
 
 export const Route = createFileRoute("/inventory/$editionId")({
 	component: EditionDetail,
@@ -42,6 +43,30 @@ function baseOfferCentsPreview(
 	const mapped = snapshotFmvCentsForClassification(data, classification);
 	if (mapped != null) return mapped;
 	return data.cibPrice ?? data.loosePrice ?? null;
+}
+
+/** Single FMV row label in modals; matches PriceCharting column names where applicable. */
+function fmvRowLabel(classification: CopyClassification): string {
+	switch (classification) {
+		case CopyClassification.LOOSE:
+			return "Loose";
+		case CopyClassification.CIB:
+			return "CIB";
+		case CopyClassification.SEALED:
+			return "New";
+		case CopyClassification.GRADED_SLAB:
+			return "Graded";
+		default:
+			return classification.replace(/_/g, " ");
+	}
+}
+
+/** Normalize stored offer for the edit/add inputs so cents match the slider. */
+function formatStoredOfferForInput(raw: string | null | undefined): string {
+	const t = raw?.trim() ?? "";
+	if (!t) return "";
+	const n = Number.parseFloat(t.replace(/,/g, ""));
+	return Number.isFinite(n) ? n.toFixed(2) : t;
 }
 
 function snapshotToPricingPreview(
@@ -214,19 +239,19 @@ const fetchedAtClass = css({
 });
 
 const copiesTableScrollClass = css({
-	overflowX: "auto",
+	overflowX: { base: "visible", md: "auto" },
 	mb: "4",
 });
 
 const copiesTableMinClass = css({
-	minWidth: "640px",
+	minWidth: { base: "0", md: "740px" },
 });
 
 const copiesGridCols =
-	"minmax(96px, 120px) minmax(72px, 96px) minmax(72px, 96px) minmax(100px, 140px) minmax(0, 1fr) auto";
+	"minmax(90px, 100px) minmax(96px, 120px) minmax(72px, 96px) minmax(72px, 96px) minmax(100px, 140px) minmax(0, 1fr) auto";
 
 const copiesHeaderRowClass = css({
-	display: "grid",
+	display: { base: "none", md: "grid" },
 	gridTemplateColumns: copiesGridCols,
 	gap: "3",
 	alignItems: "center",
@@ -244,19 +269,58 @@ const copiesHeaderRowClass = css({
 });
 
 const copyDataRowClass = css({
-	display: "grid",
-	gridTemplateColumns: copiesGridCols,
+	display: { base: "flex", md: "grid" },
+	flexDir: { base: "column", md: undefined },
+	gridTemplateColumns: { md: copiesGridCols },
 	gap: "3",
-	alignItems: "center",
+	alignItems: { base: "stretch", md: "center" },
 	px: "2",
 	py: "3",
-	borderBottomWidth: "1px",
+	fontSize: "sm",
+	borderRadius: { base: "btn", md: "0" },
+	borderWidth: { base: "1px", md: "0" },
+	borderStyle: "solid",
+	borderColor: "borderSubtle",
+	mb: { base: "3", md: "0" },
+	borderBottomWidth: { base: "1px", md: "1px" },
 	borderBottomStyle: "solid",
 	borderBottomColor: "borderSubtle",
-	fontSize: "sm",
 	"&:last-child": {
-		borderBottomWidth: "0",
+		mb: { base: "0", md: "0" },
+		borderBottomWidth: { md: "0" },
 	},
+});
+
+const copyRowSoldClass = css({
+	bg: { md: "rgba(66, 148, 110, 0.06)" },
+	borderColor: { md: "rgba(66, 148, 110, 0.22)" },
+});
+
+const copyFieldPairClass = css({
+	display: { base: "flex", md: "contents" },
+	flexDir: { base: "row", md: undefined },
+	justifyContent: { base: "space-between", md: undefined },
+	alignItems: { base: "baseline", md: undefined },
+	gap: { base: "4", md: undefined },
+	minWidth: "0",
+});
+
+const copyFieldPairNotesClass = css({
+	display: { base: "flex", md: "contents" },
+	flexDir: { base: "column", md: undefined },
+	alignItems: { base: "stretch", md: undefined },
+	gap: { base: "1", md: undefined },
+	minWidth: "0",
+});
+
+const copyMobileLabelClass = css({
+	display: { base: "block", md: "none" },
+	fontSize: "xs",
+	fontWeight: "medium",
+	color: "foregroundMuted",
+	textTransform: "uppercase",
+	letterSpacing: "0.05em",
+	flexShrink: "0",
 });
 
 const copyCellMutedClass = css({
@@ -275,17 +339,23 @@ const copyNotesCellClass = css({
 	fontSize: "sm",
 	color: "foregroundMuted",
 	minWidth: "0",
-	overflow: "hidden",
-	textOverflow: "ellipsis",
-	whiteSpace: "nowrap",
-	md: { whiteSpace: "normal", wordBreak: "break-word" },
+	overflow: { base: "visible", md: "hidden" },
+	textOverflow: { base: "clip", md: "ellipsis" },
+	whiteSpace: { base: "normal", md: "nowrap" },
+	wordBreak: "break-word",
 });
 
 const copyActionsCellClass = css({
 	display: "flex",
+	flexDir: { base: "column", md: "row" },
 	flexWrap: "wrap",
 	gap: "2",
-	justifyContent: "flex-end",
+	width: { base: "100%", md: "auto" },
+	alignSelf: { base: "stretch", md: "auto" },
+	justifyContent: { base: "stretch", md: "flex-end" },
+	"& button": {
+		width: { base: "100%", md: "auto" },
+	},
 });
 
 const copyClassClass = css({
@@ -340,6 +410,17 @@ function isoToDatetimeLocal(iso: string) {
 	return toDatetimeLocalValue(new Date(iso));
 }
 
+/** `YYYY-MM-DD` → ISO string at local noon (sale date without time-of-day). */
+function dateOnlyToUtcIso(dateStr: string): string {
+	const t = dateStr.trim();
+	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+	if (!m) throw new Error("Invalid date");
+	const y = Number(m[1]);
+	const mo = Number(m[2]);
+	const d = Number(m[3]);
+	return new Date(y, mo - 1, d, 12, 0, 0, 0).toISOString();
+}
+
 const textInputClass = css({
 	display: "block",
 	width: "100%",
@@ -358,6 +439,15 @@ const textInputClass = css({
 	_placeholder: { color: "foregroundMuted" },
 });
 
+/** `type="date"` / `type="time"`: 16px avoids iOS zoom; native pickers stay usable on mobile. */
+const nativeDateOrTimeInputClass = cx(
+	textInputClass,
+	css({
+		fontSize: "md",
+		lineHeight: "1.25",
+	}),
+);
+
 const overlayClass = css({
 	position: "fixed",
 	inset: 0,
@@ -367,19 +457,37 @@ const overlayClass = css({
 
 const modalPanelClass = css({
 	position: "fixed",
-	top: "50%",
-	left: "50%",
-	transform: "translate(-50%, -50%)",
 	bg: "surface",
-	borderRadius: "card",
-	borderWidth: "1px",
+	zIndex: 101,
+	display: "flex",
+	flexDir: "column",
+	overflow: "hidden",
+	p: "0",
+	/** Mobile: full height, top-aligned. sm+: centered in overlay. */
+	top: { base: "0", sm: "50%" },
+	bottom: { base: "0", sm: "auto" },
+	left: { base: "0", sm: "50%" },
+	right: { base: "0", sm: "auto" },
+	transform: { base: "none", sm: "translate(-50%, -50%)" },
+	width: { base: "100%", sm: "calc(100% - 2rem)" },
+	maxWidth: { base: "100%", sm: "420px" },
+	maxHeight: {
+		sm: "min(90dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem))",
+	},
 	borderStyle: "solid",
 	borderColor: "border",
-	maxWidth: "420px",
-	width: "calc(100% - 2rem)",
-	p: "5",
-	boxShadow: "md",
-	zIndex: 101,
+	borderRadius: { base: "0", sm: "card" },
+	borderWidth: { base: "0", sm: "1px" },
+	boxShadow: { base: "none", sm: "md" },
+});
+
+/** Wider copy modals — keep full width on small screens. */
+const modalPanelMax520Class = css({
+	maxWidth: { base: "100%", sm: "520px" },
+});
+
+const modalPanelMax460Class = css({
+	maxWidth: { base: "100%", sm: "460px" },
 });
 
 const modalTitleClass = css({
@@ -388,15 +496,49 @@ const modalTitleClass = css({
 	color: "foreground",
 	mb: "4",
 	mt: "0",
+	flexShrink: "0",
+	pt: {
+		base: "calc({spacing.5} + env(safe-area-inset-top, 0px))",
+		sm: "5",
+	},
+	pl: "calc({spacing.5} + env(safe-area-inset-left, 0px))",
+	pr: "calc({spacing.5} + env(safe-area-inset-right, 0px))",
 });
 
-const modalActionsClass = css({
+const modalBodyScrollClass = css({
+	flex: "1",
+	minH: "0",
+	overflowY: "auto",
+	WebkitOverflowScrolling: "touch",
+	overscrollBehavior: "contain",
+	pl: "calc({spacing.5} + env(safe-area-inset-left, 0px))",
+	pr: "calc({spacing.5} + env(safe-area-inset-right, 0px))",
+	pb: "4",
+});
+
+const modalFooterClass = css({
+	flexShrink: "0",
 	display: "flex",
 	flexDir: { base: "column-reverse", sm: "row" },
 	gap: "3",
 	justifyContent: { base: "stretch", sm: "flex-end" },
-	mt: "5",
-	pt: "1",
+	pt: "3",
+	pb: "calc({spacing.5} + env(safe-area-inset-bottom, 0px))",
+	pl: "calc({spacing.5} + env(safe-area-inset-left, 0px))",
+	pr: "calc({spacing.5} + env(safe-area-inset-right, 0px))",
+	borderTopWidth: "1px",
+	borderTopStyle: "solid",
+	borderTopColor: "border",
+	bg: "surface",
+});
+
+const modalFormColumnClass = css({
+	display: "flex",
+	flexDir: "column",
+	flex: "1",
+	minH: "0",
+	overflow: "hidden",
+	width: "100%",
 });
 
 function EditionDetail() {
@@ -414,9 +556,8 @@ function EditionDetail() {
 	const [notes, setNotes] = useState("");
 	const [sellCopyId, setSellCopyId] = useState<string | null>(null);
 	const [sellAmount, setSellAmount] = useState("");
-	const [sellCurrency, setSellCurrency] = useState("USD");
-	const [sellDatetimeLocal, setSellDatetimeLocal] = useState(() =>
-		toDatetimeLocalValue(new Date()),
+	const [sellDateOnly, setSellDateOnly] = useState(() =>
+		toDatetimeLocalValue(new Date()).slice(0, 10),
 	);
 	const [sellError, setSellError] = useState<string | null>(null);
 
@@ -425,14 +566,20 @@ function EditionDetail() {
 		useState<CopyClassification>(CopyClassification.CIB);
 	const [editNotes, setEditNotes] = useState("");
 	const [editOfferAmount, setEditOfferAmount] = useState("");
-	const [editOfferCurrency, setEditOfferCurrency] = useState("USD");
 	const [editCopyError, setEditCopyError] = useState<string | null>(null);
 	const [addCopyModalOpen, setAddCopyModalOpen] = useState(false);
 	const [addCopyOfferAmount, setAddCopyOfferAmount] = useState("");
-	const [addCopyOfferCurrency, setAddCopyOfferCurrency] = useState("USD");
 	const [addCopyPurchaseAmount, setAddCopyPurchaseAmount] = useState("");
 	const addCopyDialogPopupRef = useRef<HTMLDivElement>(null);
 	const editCopyDialogPopupRef = useRef<HTMLDivElement>(null);
+	/** Tracks classification when Edit copy opened; used to apply FMV only after user changes class. */
+	const prevEditClassificationForOfferRef = useRef<CopyClassification | null>(
+		null,
+	);
+	/** True when Edit copy opened with no offer text (may still get FMV once pricing/slider is ready). */
+	const editOpenedWithEmptyOfferRef = useRef(false);
+	/** After first FMV fill from slider for an opened-empty copy; avoids refilling if user clears the field. */
+	const editOfferSliderHydratedRef = useRef(false);
 
 	const q = useQuery({
 		queryKey: ["edition", editionId],
@@ -448,7 +595,9 @@ function EditionDetail() {
 				`/product-pricing?${sp.toString()}`,
 			);
 		},
-		enabled: addCopyModalOpen && Boolean(q.data?.priceChartingProductId),
+		enabled:
+			(addCopyModalOpen || editCopyId !== null) &&
+			Boolean(q.data?.priceChartingProductId),
 		staleTime: 60_000,
 	});
 
@@ -472,13 +621,8 @@ function EditionDetail() {
 		return Number.isFinite(n) ? n : null;
 	}, [addCopyOfferAmount]);
 
-	const addCopyOfferCurrencyNorm =
-		addCopyOfferCurrency.trim().toUpperCase() || "USD";
-
 	const addCopyShowLowOfferWarning =
-		addCopyOfferAmountNumeric != null &&
-		addCopyOfferAmountNumeric < 5 &&
-		addCopyOfferCurrencyNorm === "USD";
+		addCopyOfferAmountNumeric != null && addCopyOfferAmountNumeric < 5;
 
 	const addCopyOfferSliderCents = useMemo(() => {
 		if (addCopyBaseOfferCents == null) return null;
@@ -501,11 +645,85 @@ function EditionDetail() {
 		};
 	}, [addCopyBaseOfferCents, addCopyOfferAmountNumeric]);
 
+	const editCopyBaseOfferCents = useMemo(() => {
+		if (!addCopyEffectivePricing) return null;
+		return baseOfferCentsPreview(addCopyEffectivePricing, editClassification);
+	}, [addCopyEffectivePricing, editClassification]);
+
+	const editOfferAmountNumeric = useMemo(() => {
+		const t = editOfferAmount.trim();
+		if (!t) return null;
+		const n = Number.parseFloat(t.replace(/,/g, ""));
+		return Number.isFinite(n) ? n : null;
+	}, [editOfferAmount]);
+
+	const editCopyShowLowOfferWarning =
+		editOfferAmountNumeric != null && editOfferAmountNumeric < 5;
+
+	const editCopyOfferSliderCents = useMemo(() => {
+		if (editCopyBaseOfferCents == null) return null;
+		const parsedCents =
+			editOfferAmountNumeric != null
+				? Math.round(editOfferAmountNumeric * 100)
+				: editCopyBaseOfferCents;
+		const minC = Math.max(
+			100,
+			Math.floor((editCopyBaseOfferCents * 0.5) / 100) * 100,
+		);
+		const maxC = Math.max(
+			Math.ceil((editCopyBaseOfferCents * 2) / 100) * 100,
+			minC + 100,
+		);
+		return {
+			minC,
+			maxC,
+			value: Math.min(maxC, Math.max(minC, parsedCents)),
+		};
+	}, [editCopyBaseOfferCents, editOfferAmountNumeric]);
+
+	/** Keep text input aligned with the range slider after clamp (classification / FMV range changes). */
+	useEffect(() => {
+		if (editCopyId === null || !editCopyOfferSliderCents) return;
+		if (editOfferAmountNumeric == null) return;
+		const rawCents = Math.round(editOfferAmountNumeric * 100);
+		const clamped = editCopyOfferSliderCents.value;
+		if (rawCents !== clamped) {
+			setEditOfferAmount((clamped / 100).toFixed(2));
+		}
+	}, [
+		editCopyId,
+		editCopyOfferSliderCents?.value,
+		editCopyOfferSliderCents?.minC,
+		editCopyOfferSliderCents?.maxC,
+		editOfferAmountNumeric,
+	]);
+
+	/** Opened with no offer and no snapshot FMV: when slider becomes available, match input to slider once. */
+	useEffect(() => {
+		if (editCopyId === null) return;
+		if (!editOpenedWithEmptyOfferRef.current) return;
+		if (!editCopyOfferSliderCents) return;
+		if (editOfferSliderHydratedRef.current) return;
+		editOfferSliderHydratedRef.current = true;
+		setEditOfferAmount((editCopyOfferSliderCents.value / 100).toFixed(2));
+	}, [editCopyId, editCopyOfferSliderCents]);
+
 	useEffect(() => {
 		if (!addCopyModalOpen) return;
 		if (addCopyBaseOfferCents == null) return;
 		setAddCopyOfferAmount((addCopyBaseOfferCents / 100).toFixed(2));
 	}, [addCopyModalOpen, addCopyBaseOfferCents]);
+
+	/** When classification changes in Edit copy, set offer (and slider) to FMV for that class. */
+	useEffect(() => {
+		if (editCopyId === null) return;
+		if (editCopyBaseOfferCents == null) return;
+		const prev = prevEditClassificationForOfferRef.current;
+		if (prev !== editClassification) {
+			prevEditClassificationForOfferRef.current = editClassification;
+			setEditOfferAmount((editCopyBaseOfferCents / 100).toFixed(2));
+		}
+	}, [editCopyId, editClassification, editCopyBaseOfferCents]);
 
 	const refresh = useMutation({
 		mutationFn: () =>
@@ -558,7 +776,7 @@ function EditionDetail() {
 					...(addCopyOfferAmount.trim()
 						? {
 								offerAmount: addCopyOfferAmount.trim(),
-								offerCurrency: addCopyOfferCurrency.trim().slice(0, 3) || "USD",
+								offerCurrency: "USD",
 							}
 						: {}),
 				}),
@@ -568,7 +786,6 @@ function EditionDetail() {
 			setNotes("");
 			setAddCopyOfferAmount("");
 			setAddCopyPurchaseAmount("");
-			setAddCopyOfferCurrency("USD");
 			setAddCopyModalOpen(false);
 			void q.refetch();
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
@@ -584,7 +801,6 @@ function EditionDetail() {
 		setCopyError(null);
 		setAddCopyOfferAmount("");
 		setAddCopyPurchaseAmount("");
-		setAddCopyOfferCurrency("USD");
 	}
 
 	function openSellModal(c: OwnedCopyDto) {
@@ -593,11 +809,10 @@ function EditionDetail() {
 		setEditCopyError(null);
 		setSellCopyId(c.id);
 		setSellAmount(c.soldAmount ?? "");
-		setSellCurrency((c.soldCurrency ?? "USD").trim().slice(0, 3) || "USD");
-		setSellDatetimeLocal(
+		setSellDateOnly(
 			c.soldAt
-				? isoToDatetimeLocal(c.soldAt)
-				: toDatetimeLocalValue(new Date()),
+				? isoToDatetimeLocal(c.soldAt).slice(0, 10)
+				: toDatetimeLocalValue(new Date()).slice(0, 10),
 		);
 		setSellError(null);
 	}
@@ -613,16 +828,30 @@ function EditionDetail() {
 		setSellError(null);
 		setEditCopyId(c.id);
 		setEditClassification(c.copyClassification);
+		prevEditClassificationForOfferRef.current = c.copyClassification;
 		setEditNotes(c.classificationNotes ?? "");
-		setEditOfferAmount(c.offerAmount ?? "");
-		setEditOfferCurrency(
-			(c.offerCurrency ?? "USD").trim().slice(0, 3) || "USD",
-		);
+
+		const edition = q.data;
+		let initialOffer = formatStoredOfferForInput(c.offerAmount);
+		if (!initialOffer && edition?.snapshot) {
+			const cents = baseOfferCentsPreview(
+				snapshotToPricingPreview(edition.snapshot),
+				c.copyClassification,
+			);
+			if (cents != null) initialOffer = (cents / 100).toFixed(2);
+		}
+		setEditOfferAmount(initialOffer);
+		editOpenedWithEmptyOfferRef.current = !initialOffer;
+		editOfferSliderHydratedRef.current = false;
+
 		setEditCopyError(null);
 	}
 
 	function closeEditCopyModal() {
 		setEditCopyId(null);
+		prevEditClassificationForOfferRef.current = null;
+		editOpenedWithEmptyOfferRef.current = false;
+		editOfferSliderHydratedRef.current = false;
 		setEditCopyError(null);
 	}
 
@@ -637,7 +866,7 @@ function EditionDetail() {
 			};
 			if (trimmedOffer) {
 				body.offerAmount = trimmedOffer;
-				body.offerCurrency = editOfferCurrency.trim().slice(0, 3) || "USD";
+				body.offerCurrency = "USD";
 			} else {
 				body.offerAmount = null;
 				body.offerCurrency = null;
@@ -668,7 +897,7 @@ function EditionDetail() {
 			if (!amt) throw new Error("Enter the sale amount");
 			let soldAtIso: string;
 			try {
-				soldAtIso = new Date(sellDatetimeLocal).toISOString();
+				soldAtIso = dateOnlyToUtcIso(sellDateOnly);
 			} catch {
 				throw new Error("Invalid sale date");
 			}
@@ -676,13 +905,14 @@ function EditionDetail() {
 				method: "PATCH",
 				body: JSON.stringify({
 					soldAmount: amt,
-					soldCurrency: sellCurrency.trim() || "USD",
+					soldCurrency: "USD",
 					soldAt: soldAtIso,
 				}),
 			});
 		},
 		onSuccess: () => {
 			closeSellModal();
+			queueMicrotask(() => playSaleSavedConfetti());
 			void q.refetch();
 			void queryClient.invalidateQueries({ queryKey: ["editions"] });
 			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -707,6 +937,16 @@ function EditionDetail() {
 			setDeleteError(e instanceof Error ? e.message : "Could not delete game");
 		},
 	});
+
+	const copiesSorted = useMemo(() => {
+		const copies = q.data?.copies;
+		if (!copies) return [];
+		return [...copies].sort((a, b) => {
+			const aSold = a.soldAt != null ? 1 : 0;
+			const bSold = b.soldAt != null ? 1 : 0;
+			return aSold - bSold;
+		});
+	}, [q.data?.copies]);
 
 	if (q.isLoading) {
 		return <p className={stateTextClass}>Loading…</p>;
@@ -856,7 +1096,11 @@ function EditionDetail() {
 						>
 							<div className={metaRowClass}>
 								<Badge variant="default">{editionConsoleBadge(e)}</Badge>
-								<span className={metaTextClass}>UPC {e.upc}</span>
+								{e.upc != null && e.upc !== "" ? (
+									<span className={metaTextClass}>UPC {e.upc}</span>
+								) : (
+									<span className={metaTextClass}>No UPC</span>
+								)}
 								{e.publisher && (
 									<span className={metaTextClass}>· {e.publisher}</span>
 								)}
@@ -965,7 +1209,6 @@ function EditionDetail() {
 								setCopyError(null);
 								setAddCopyOfferAmount("");
 								setAddCopyPurchaseAmount("");
-								setAddCopyOfferCurrency("USD");
 								setAddCopyModalOpen(true);
 							}}
 						>
@@ -985,6 +1228,7 @@ function EditionDetail() {
 							<div className={copiesTableScrollClass}>
 								<div className={copiesTableMinClass}>
 									<div className={copiesHeaderRowClass}>
+										<span>Status</span>
 										<span>Class</span>
 										<span className={css({ textAlign: "right" })}>Paid</span>
 										<span className={css({ textAlign: "right" })}>Offer</span>
@@ -992,62 +1236,103 @@ function EditionDetail() {
 										<span>Notes</span>
 										<span />
 									</div>
-									{e.copies.map((c: OwnedCopyDto) => (
-										<div key={c.id} className={copyDataRowClass}>
-											<span className={copyClassClass}>
-												{c.copyClassification.replace(/_/g, " ")}
-											</span>
-											<span className={css({ textAlign: "right" })}>
-												{c.purchaseAmount != null ? (
-													<span className={copyCellClass}>
-														{formatMoneyAmount(
-															c.purchaseAmount,
-															c.purchaseCurrency,
-														)}
-													</span>
-												) : (
-													<span className={copyCellMutedClass}>—</span>
-												)}
-											</span>
-											<span className={css({ textAlign: "right" })}>
-												{c.offerAmount != null ? (
-													<span className={copyCellClass}>
-														{formatMoneyAmount(c.offerAmount, c.offerCurrency)}
-													</span>
-												) : (
-													<span className={copyCellMutedClass}>—</span>
-												)}
-											</span>
-											<div>
-												{c.soldAt != null ? (
-													<span
-														className={css({
-															fontSize: "sm",
-															color: "accentGreen",
-															fontWeight: "medium",
-														})}
+									{copiesSorted.map((c: OwnedCopyDto) => (
+										<div
+											key={c.id}
+											className={cx(
+												copyDataRowClass,
+												c.soldAt != null && copyRowSoldClass,
+											)}
+										>
+											<div className={copyFieldPairClass}>
+												<span className={copyMobileLabelClass}>Status</span>
+												<span
+													className={css({
+														textAlign: { base: "right", md: "left" },
+													})}
+												>
+													<Badge
+														variant={c.soldAt != null ? "green" : "purple"}
 													>
-														{formatMoneyAmount(
-															c.soldAmount ?? "0",
-															c.soldCurrency,
-														)}{" "}
-														· {new Date(c.soldAt).toLocaleDateString()}
-													</span>
-												) : (
-													<span className={copyCellMutedClass}>—</span>
-												)}
+														{c.soldAt != null ? "Sold" : "Available"}
+													</Badge>
+												</span>
 											</div>
-											<div
-												className={copyNotesCellClass}
-												title={
-													c.classificationNotes?.trim()
+											<div className={copyFieldPairClass}>
+												<span className={copyMobileLabelClass}>Class</span>
+												<span
+													className={cx(
+														copyClassClass,
+														css({
+															textAlign: { base: "right", md: "left" },
+														}),
+													)}
+												>
+													{c.copyClassification.replace(/_/g, " ")}
+												</span>
+											</div>
+											<div className={copyFieldPairClass}>
+												<span className={copyMobileLabelClass}>Paid</span>
+												<span className={css({ textAlign: "right" })}>
+													{c.purchaseAmount != null ? (
+														<span className={copyCellClass}>
+															{formatMoneyAmount(c.purchaseAmount)}
+														</span>
+													) : (
+														<span className={copyCellMutedClass}>—</span>
+													)}
+												</span>
+											</div>
+											<div className={copyFieldPairClass}>
+												<span className={copyMobileLabelClass}>Offer</span>
+												<span className={css({ textAlign: "right" })}>
+													{c.offerAmount != null ? (
+														<span className={copyCellClass}>
+															{formatMoneyAmount(c.offerAmount)}
+														</span>
+													) : (
+														<span className={copyCellMutedClass}>—</span>
+													)}
+												</span>
+											</div>
+											<div className={copyFieldPairClass}>
+												<span className={copyMobileLabelClass}>Sale</span>
+												<div
+													className={css({
+														textAlign: { base: "right", md: "left" },
+														minWidth: "0",
+													})}
+												>
+													{c.soldAt != null ? (
+														<span
+															className={css({
+																fontSize: "sm",
+																color: "accentGreen",
+																fontWeight: "medium",
+															})}
+														>
+															{formatMoneyAmount(c.soldAmount ?? "0")}{" "}
+															· {new Date(c.soldAt).toLocaleDateString()}
+														</span>
+													) : (
+														<span className={copyCellMutedClass}>—</span>
+													)}
+												</div>
+											</div>
+											<div className={copyFieldPairNotesClass}>
+												<span className={copyMobileLabelClass}>Notes</span>
+												<div
+													className={copyNotesCellClass}
+													title={
+														c.classificationNotes?.trim()
+															? c.classificationNotes
+															: undefined
+													}
+												>
+													{c.classificationNotes?.trim()
 														? c.classificationNotes
-														: undefined
-												}
-											>
-												{c.classificationNotes?.trim()
-													? c.classificationNotes
-													: "—"}
+														: "—"}
+												</div>
 											</div>
 											<div className={copyActionsCellClass}>
 												<Button
@@ -1087,31 +1372,34 @@ function EditionDetail() {
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup
 						ref={addCopyDialogPopupRef}
-						className={cx(modalPanelClass, css({ maxWidth: "520px" }))}
+						className={cx(modalPanelClass, modalPanelMax520Class)}
 					>
-						<Dialog.Title className={modalTitleClass}>
-							Add copy
-							<span
-								className={css({
-									display: "block",
-									fontSize: "xs",
-									fontWeight: "normal",
-									color: "foregroundMuted",
-									mt: "1",
-								})}
-							>
-								{e.title}
-							</span>
-						</Dialog.Title>
 						<form
-							className={addCopyFormInnerClass}
+							className={modalFormColumnClass}
 							onSubmit={(ev) => {
 								ev.preventDefault();
 								setCopyError(null);
 								addCopy.mutate();
 							}}
 						>
-							{copyError && <p className={errorBannerClass}>{copyError}</p>}
+							<Dialog.Title className={modalTitleClass}>
+								Add copy
+								<span
+									className={css({
+										display: "block",
+										fontSize: "xs",
+										fontWeight: "normal",
+										color: "foregroundMuted",
+										mt: "1",
+									})}
+								>
+									{e.title}
+								</span>
+							</Dialog.Title>
+							<div className={cx(addCopyFormInnerClass, modalBodyScrollClass)}>
+								{copyError && (
+									<p className={errorBannerClass}>{copyError}</p>
+								)}
 							<div className={formRowClass}>
 								<div className={fieldClass}>
 									<Label htmlFor="add-copy-classification">
@@ -1245,58 +1533,17 @@ function EditionDetail() {
 									/>
 								</Field>
 
-								<Field
-									label={
-										<>
-											Asking (optional){" "}
-											<span
-												className={css({
-													color: "foregroundMuted",
-													fontWeight: "normal",
-												})}
-											>
-												(USD)
-											</span>
-										</>
-									}
-									htmlFor="add-copy-offer-amt"
-								>
-									<div
-										className={css({
-											display: "flex",
-											gap: "2",
-											alignItems: "stretch",
-										})}
-									>
-										<Input
-											id="add-copy-offer-amt"
-											type="text"
-											inputMode="decimal"
-											autoComplete="off"
-											value={addCopyOfferAmount}
-											onChange={(ev) => setAddCopyOfferAmount(ev.target.value)}
-											placeholder="0.00"
-											className={cx(inputClass, css({ flex: "1", minW: "0" }))}
-										/>
-										<Input
-											id="add-copy-offer-ccy"
-											type="text"
-											autoComplete="off"
-											value={addCopyOfferCurrency}
-											onChange={(ev) =>
-												setAddCopyOfferCurrency(
-													ev.target.value.toUpperCase().slice(0, 3),
-												)
-											}
-											placeholder="USD"
-											maxLength={3}
-											aria-label="Offer currency"
-											className={cx(
-												inputClass,
-												css({ width: "60px", flexShrink: "0" }),
-											)}
-										/>
-									</div>
+								<Field label="Asking (optional)" htmlFor="add-copy-offer-amt">
+									<Input
+										id="add-copy-offer-amt"
+										type="text"
+										inputMode="decimal"
+										autoComplete="off"
+										value={addCopyOfferAmount}
+										onChange={(ev) => setAddCopyOfferAmount(ev.target.value)}
+										placeholder="0.00"
+										className={inputClass}
+									/>
 									{addCopyOfferSliderCents && (
 										<input
 											type="range"
@@ -1321,7 +1568,7 @@ function EditionDetail() {
 									{addCopyShowLowOfferWarning && (
 										<output
 											className={lowOfferWarningClass}
-											htmlFor="add-copy-offer-amt add-copy-offer-ccy"
+											htmlFor="add-copy-offer-amt"
 											aria-live="polite"
 										>
 											Prices under $5 may sell faster but earn less.
@@ -1329,8 +1576,9 @@ function EditionDetail() {
 									)}
 								</Field>
 							</div>
+							</div>
 
-							<div className={modalActionsClass}>
+							<div className={modalFooterClass}>
 								<Button
 									type="button"
 									variant="secondary"
@@ -1363,41 +1611,45 @@ function EditionDetail() {
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup
 						ref={editCopyDialogPopupRef}
-						className={cx(modalPanelClass, css({ maxWidth: "460px" }))}
+						className={cx(modalPanelClass, modalPanelMax460Class)}
 					>
-						<Dialog.Title className={modalTitleClass}>
-							Edit copy
-							{editingCopy && (
-								<span
-									className={css({
-										display: "block",
-										fontSize: "xs",
-										fontWeight: "normal",
-										color: "foregroundMuted",
-										mt: "1",
-									})}
-								>
-									{e.title}
-								</span>
-							)}
-						</Dialog.Title>
 						<form
+							className={modalFormColumnClass}
 							onSubmit={(ev) => {
 								ev.preventDefault();
 								setEditCopyError(null);
 								updateCopyMeta.mutate();
 							}}
 						>
-							{editCopyError && (
-								<p className={errorBannerClass}>{editCopyError}</p>
-							)}
+							<Dialog.Title className={modalTitleClass}>
+								Edit copy
+								{editingCopy && (
+									<span
+										className={css({
+											display: "block",
+											fontSize: "xs",
+											fontWeight: "normal",
+											color: "foregroundMuted",
+											mt: "1",
+										})}
+									>
+										{e.title}
+									</span>
+								)}
+							</Dialog.Title>
 							<div
-								className={css({
-									display: "flex",
-									flexDir: "column",
-									gap: "3",
-								})}
+								className={cx(
+									modalBodyScrollClass,
+									css({
+										display: "flex",
+										flexDir: "column",
+										gap: "3",
+									}),
+								)}
 							>
+								{editCopyError && (
+									<p className={errorBannerClass}>{editCopyError}</p>
+								)}
 								<div>
 									<Label htmlFor="edit-classification">Classification</Label>
 									<Select
@@ -1424,49 +1676,116 @@ function EditionDetail() {
 										className={textInputClass}
 									/>
 								</div>
+								{(e.snapshot || e.priceChartingProductId) && (
+									<div className={formGroupClass} aria-live="polite">
+										<span
+											className={css({
+												fontSize: "sm",
+												fontWeight: "medium",
+												color: "foreground",
+											})}
+										>
+											PriceCharting (FMV)
+										</span>
+										{e.priceChartingProductId &&
+											addCopyPricingQuery.isFetching &&
+											!addCopyEffectivePricing && (
+												<p
+													className={css({
+														fontSize: "sm",
+														color: "foregroundMuted",
+														mb: "0",
+													})}
+												>
+													Loading prices…
+												</p>
+											)}
+										{e.priceChartingProductId &&
+											addCopyPricingQuery.isError &&
+											!addCopyEffectivePricing && (
+												<p
+													className={css({
+														fontSize: "sm",
+														color: "danger",
+														mb: "0",
+													})}
+												>
+													Could not load prices (check API token / network).
+												</p>
+											)}
+										{addCopyEffectivePricing && (
+											<>
+												{(addCopyEffectivePricing.productName ||
+													addCopyEffectivePricing.consoleName) && (
+													<p
+														className={css({
+															fontSize: "xs",
+															color: "foregroundMuted",
+															m: "0",
+														})}
+													>
+														{addCopyEffectivePricing.productName}
+														{addCopyEffectivePricing.consoleName && (
+															<> · {addCopyEffectivePricing.consoleName}</>
+														)}
+													</p>
+												)}
+												<dl className={priceDlClass}>
+													<dt className={priceDtClass}>
+														{fmvRowLabel(editClassification)}
+													</dt>
+													<dd className={priceDdClass}>
+														{formatPcCents(editCopyBaseOfferCents)}
+													</dd>
+												</dl>
+											</>
+										)}
+									</div>
+								)}
 								<div>
 									<Label htmlFor="edit-offer-amt">
 										Offer / asking price (optional)
 									</Label>
-									<div
-										className={css({
-											display: "flex",
-											gap: "2",
-											alignItems: "stretch",
-										})}
-									>
+									<input
+										id="edit-offer-amt"
+										type="text"
+										inputMode="decimal"
+										autoComplete="off"
+										value={editOfferAmount}
+										onChange={(ev) => setEditOfferAmount(ev.target.value)}
+										placeholder="0.00"
+										className={textInputClass}
+									/>
+									{editCopyOfferSliderCents && (
 										<input
-											id="edit-offer-amt"
-											type="text"
-											inputMode="decimal"
-											autoComplete="off"
-											value={editOfferAmount}
-											onChange={(ev) => setEditOfferAmount(ev.target.value)}
-											placeholder="0.00"
-											className={cx(
-												textInputClass,
-												css({ flex: "1", minW: 0 }),
-											)}
-										/>
-										<input
-											id="edit-offer-ccy"
-											type="text"
-											maxLength={3}
-											autoComplete="off"
-											value={editOfferCurrency}
+											type="range"
+											className={css({
+												w: "100%",
+												mt: "2",
+												accentColor: "accent",
+												cursor: "pointer",
+											})}
+											min={editCopyOfferSliderCents.minC}
+											max={editCopyOfferSliderCents.maxC}
+											step={100}
+											value={editCopyOfferSliderCents.value}
+											aria-label="Adjust asking price"
 											onChange={(ev) =>
-												setEditOfferCurrency(
-													ev.target.value.toUpperCase().slice(0, 3),
+												setEditOfferAmount(
+													(Number(ev.target.value) / 100).toFixed(2),
 												)
 											}
-											placeholder="USD"
-											aria-label="Offer currency"
-											className={cx(
-												textInputClass,
-												css({ width: "76px", flexShrink: 0 }),
-											)}
 										/>
-									</div>
+									)}
+									{editCopyShowLowOfferWarning && (
+										<output
+											className={lowOfferWarningClass}
+											htmlFor="edit-offer-amt"
+											aria-live="polite"
+										>
+											Prices under $5 may sell faster but earn less.
+										</output>
+									)}
 									<p
 										className={css({
 											fontSize: "xs",
@@ -1479,7 +1798,8 @@ function EditionDetail() {
 									</p>
 								</div>
 							</div>
-							<div className={modalActionsClass}>
+
+							<div className={modalFooterClass}>
 								<Button
 									type="button"
 									variant="secondary"
@@ -1510,24 +1830,30 @@ function EditionDetail() {
 				<Dialog.Portal>
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup className={modalPanelClass}>
-						<Dialog.Title className={modalTitleClass}>
-							{sellingCopy?.soldAt != null ? "Edit sale" : "Mark copy as sold"}
-						</Dialog.Title>
 						<form
+							className={modalFormColumnClass}
 							onSubmit={(ev) => {
 								ev.preventDefault();
 								setSellError(null);
 								markSold.mutate();
 							}}
 						>
-							{sellError && <p className={errorBannerClass}>{sellError}</p>}
+							<Dialog.Title className={modalTitleClass}>
+								{sellingCopy?.soldAt != null ? "Edit sale" : "Mark copy as sold"}
+							</Dialog.Title>
 							<div
-								className={css({
-									display: "flex",
-									flexDir: "column",
-									gap: "3",
-								})}
+								className={cx(
+									modalBodyScrollClass,
+									css({
+										display: "flex",
+										flexDir: "column",
+										gap: "3",
+									}),
+								)}
 							>
+								{sellError && (
+									<p className={errorBannerClass}>{sellError}</p>
+								)}
 								<div>
 									<Label htmlFor="sell-amount">Sale amount</Label>
 									<input
@@ -1542,33 +1868,22 @@ function EditionDetail() {
 										className={textInputClass}
 									/>
 								</div>
-								<div className={formRowClass}>
-									<div className={fieldClass}>
-										<Label htmlFor="sell-currency">Currency</Label>
-										<input
-											id="sell-currency"
-											type="text"
-											maxLength={3}
-											value={sellCurrency}
-											onChange={(ev) =>
-												setSellCurrency(ev.target.value.toUpperCase())
-											}
-											className={textInputClass}
-										/>
-									</div>
-									<div className={css({ flex: "2", minWidth: "140px" })}>
-										<Label htmlFor="sell-when">Sold at</Label>
-										<input
-											id="sell-when"
-											type="datetime-local"
-											value={sellDatetimeLocal}
-											onChange={(ev) => setSellDatetimeLocal(ev.target.value)}
-											className={textInputClass}
-										/>
-									</div>
+								<div>
+									<Label htmlFor="sell-date">Sold date</Label>
+									<input
+										id="sell-date"
+										type="date"
+										autoComplete="off"
+										value={sellDateOnly}
+										onChange={(ev) => {
+											const d = ev.target.value;
+											if (d) setSellDateOnly(d);
+										}}
+										className={nativeDateOrTimeInputClass}
+									/>
 								</div>
 							</div>
-							<div className={modalActionsClass}>
+							<div className={modalFooterClass}>
 								<Button
 									type="button"
 									variant="secondary"
@@ -1606,23 +1921,28 @@ function EditionDetail() {
 						<Dialog.Title className={modalTitleClass}>
 							Delete this game?
 						</Dialog.Title>
-						<p
-							className={css({
-								fontSize: "sm",
-								color: "foregroundMuted",
-								lineHeight: "1.5",
-								margin: "0 0 16px 0",
-							})}
-						>
-							This permanently removes{" "}
-							<strong className={css({ color: "foreground" })}>
-								{e.title}
-							</strong>{" "}
-							and all copies you logged, including sale records. The market
-							snapshot is removed too. This cannot be undone.
-						</p>
-						{deleteError && <p className={errorBannerClass}>{deleteError}</p>}
-						<div className={modalActionsClass}>
+						<div className={modalBodyScrollClass}>
+							<p
+								className={css({
+									fontSize: "sm",
+									color: "foregroundMuted",
+									lineHeight: "1.5",
+									margin: "0",
+									mb: "4",
+								})}
+							>
+								This permanently removes{" "}
+								<strong className={css({ color: "foreground" })}>
+									{e.title}
+								</strong>{" "}
+								and all copies you logged, including sale records. The market
+								snapshot is removed too. This cannot be undone.
+							</p>
+							{deleteError && (
+								<p className={errorBannerClass}>{deleteError}</p>
+							)}
+						</div>
+						<div className={modalFooterClass}>
 							<Button
 								type="button"
 								variant="secondary"

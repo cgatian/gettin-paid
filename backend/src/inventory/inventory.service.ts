@@ -6,6 +6,7 @@ import {
 	findBestPriceChartingConsoleIdFromRows,
 	type DashboardSummaryDto,
 	type PriceChartingPricingPreviewDto,
+	type PriceChartingProductCoverPreviewDto,
 	type PriceChartingProductSuggestionDto,
 	type PriceChartingSnapshotDto,
 	snapshotFmvCentsForClassification,
@@ -145,6 +146,18 @@ export class InventoryService {
 				e instanceof Error ? e.message : "PriceCharting fetch failed",
 			);
 		}
+	}
+
+	/** Cover art URL from PriceCharting product page (for add-game preview; no API token). */
+	async productCoverPreview(
+		productId: string,
+	): Promise<PriceChartingProductCoverPreviewDto> {
+		const id = productId.trim();
+		if (!id) {
+			return { previewImageUrl: null };
+		}
+		const previewImageUrl = await this.coverArt.resolveCoverPreviewImageUrl(id);
+		return { previewImageUrl };
 	}
 
 	async listEditions(priceChartingConsoleId?: string) {
@@ -323,7 +336,15 @@ export class InventoryService {
 		if (!ok) {
 			throw new BadRequestException("Invalid priceChartingConsoleId");
 		}
-		const upc = dto.upc.replace(/\D/g, "");
+		const trimmedUpc = (dto.upc ?? "").trim();
+		const upcDigits = trimmedUpc.replace(/\D/g, "");
+		if (trimmedUpc.length > 0 && upcDigits.length < 8) {
+			throw new BadRequestException(
+				"UPC must be at least 8 digits when provided",
+			);
+		}
+		const upc = upcDigits.length >= 8 ? upcDigits : null;
+
 		const priceChartingProductId = await this.resolvePriceChartingProductIdOrThrow(
 			upc,
 			dto.title,
@@ -333,12 +354,12 @@ export class InventoryService {
 		const edition = await this.prisma.$transaction(async (tx) => {
 			const e = await tx.gameEdition.create({
 				data: {
-					upc,
 					title: dto.title,
 					priceChartingConsoleId: dto.priceChartingConsoleId,
 					publisher: dto.publisher ?? null,
 					priceChartingProductId,
-				},
+					...(upc !== null ? { upc } : {}),
+				} as Prisma.GameEditionUncheckedCreateInput,
 			});
 			const purchaseAmt = dto.initialPurchaseAmount?.trim();
 			const offerAmt = dto.initialOfferAmount?.trim();
@@ -375,7 +396,18 @@ export class InventoryService {
 	async patchEdition(id: string, dto: PatchEditionDto) {
 		await this.ensureEdition(id);
 		const data: Prisma.GameEditionUpdateInput = {};
-		if (dto.upc !== undefined) data.upc = dto.upc.replace(/\D/g, "");
+		if (dto.upc !== undefined) {
+			const trimmed =
+				dto.upc === null ? "" : String(dto.upc).trim();
+			const digits = trimmed.replace(/\D/g, "");
+			if (trimmed.length > 0 && digits.length < 8) {
+				throw new BadRequestException(
+					"UPC must be at least 8 digits when provided",
+				);
+			}
+			(data as { upc?: string | null }).upc =
+				digits.length >= 8 ? digits : null;
+		}
 		if (dto.title !== undefined) data.title = dto.title;
 		if (dto.priceChartingConsoleId !== undefined) {
 			const row = await this.prisma.priceChartingConsole.findUnique({
@@ -578,7 +610,7 @@ export class InventoryService {
 		type QueueItem = {
 			id: string;
 			title: string;
-			upc: string;
+			upc: string | null;
 			pcId: string;
 			clearStaleDb: boolean;
 		};
@@ -588,7 +620,7 @@ export class InventoryService {
 			const e = editions[i];
 			if (!e.priceChartingProductId?.trim()) {
 				this.logger.warn(
-					`fetchAllCovers [${i + 1}/${editions.length}] skip (no PC id): "${e.title}" (${e.upc})`,
+					`fetchAllCovers [${i + 1}/${editions.length}] skip (no PC id): "${e.title}" (${e.upc ?? "no UPC"})`,
 				);
 				failures.push({
 					editionId: e.id,
@@ -725,11 +757,12 @@ export class InventoryService {
 	 * Try UPC + console first, then title search + pick (same heuristics as the CSV script).
 	 */
 	private async resolvePriceChartingProductIdOrThrow(
-		upc: string,
+		upc: string | null,
 		title: string,
 		priceChartingConsoleId: string,
 	): Promise<string> {
 		const tryUpc = async (): Promise<string | undefined> => {
+			if (!upc || upc.length < 8) return undefined;
 			try {
 				const data = await this.pricecharting.fetchProduct({
 					upc,
@@ -767,7 +800,7 @@ export class InventoryService {
 		if (fromSearch) return fromSearch;
 
 		throw new BadRequestException(
-			"Could not resolve a PriceCharting product id for this UPC, title, and console. Check PriceCharting or try a different spelling.",
+			"Could not resolve a PriceCharting product id for this title and console (and UPC if provided). Check PriceCharting or try a different spelling.",
 		);
 	}
 
@@ -781,13 +814,17 @@ export class InventoryService {
 				data = await this.pricecharting.fetchProduct({
 					id: edition.priceChartingProductId,
 				});
-			} else if (edition.priceChartingConsoleId) {
+			} else if (edition.upc && edition.priceChartingConsoleId) {
 				data = await this.pricecharting.fetchProduct({
 					upc: edition.upc,
 					console: edition.priceChartingConsoleId,
 				});
-			} else {
+			} else if (edition.upc) {
 				data = await this.pricecharting.fetchProduct({ upc: edition.upc });
+			} else {
+				throw new BadRequestException(
+					"Cannot refresh market data without a PriceCharting product id or UPC",
+				);
 			}
 		} catch (e) {
 			if (e instanceof ServiceUnavailableException) throw e;
@@ -864,7 +901,7 @@ export class InventoryService {
 			c.editionId,
 			c.edition.title,
 			c.edition.priceChartingConsole?.name ?? "",
-			c.edition.upc,
+			c.edition.upc ?? "",
 			c.edition.publisher ?? "",
 			c.copyClassification,
 			c.classificationNotes ?? "",

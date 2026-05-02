@@ -540,7 +540,7 @@ function Settings() {
 										.map(
 											(f: BulkRefreshMarketResultDto["failures"][number]) => (
 												<li key={f.editionId}>
-													{f.title} (UPC {f.upc}): {f.message}
+													{f.title} (UPC {f.upc ?? "—"}): {f.message}
 												</li>
 											),
 										)}
@@ -580,7 +580,7 @@ function Settings() {
 								>
 									{coversBulkResult.failures.slice(0, 8).map((f) => (
 										<li key={f.editionId}>
-											{f.title} (UPC {f.upc}): {f.message}
+											{f.title} (UPC {f.upc ?? "—"}): {f.message}
 										</li>
 									))}
 									{coversBulkResult.failures.length > 8 && (

@@ -41,6 +41,11 @@ export class InventoryController {
 		return this.inventory.productPricingPreview(productId ?? "");
 	}
 
+	@Get("product-cover-preview")
+	productCoverPreview(@Query("productId") productId?: string) {
+		return this.inventory.productCoverPreview(productId ?? "");
+	}
+
 	@Get("dashboard")
 	dashboard() {
 		return this.inventory.dashboardSummary();

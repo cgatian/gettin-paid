@@ -138,13 +138,10 @@ export class CoverArtService {
 		return pathExists(p);
 	}
 
-	/**
-	 * Fetch PriceCharting HTML, extract `#product_details img`, download image bytes.
-	 */
-	async scrapeCoverImage(priceChartingProductId: string): Promise<{
-		buffer: Buffer;
-		mime: string;
-	}> {
+	/** Resolve absolute cover image URL from PriceCharting product browse page (same DOM as full scrape). */
+	private async loadCoverImageAbsoluteUrl(
+		priceChartingProductId: string,
+	): Promise<string> {
 		const pageUrl = priceChartingProductBrowseUrl(priceChartingProductId);
 		if (!pageUrl) {
 			throw new Error("Missing PriceCharting product id");
@@ -183,6 +180,37 @@ export class CoverArtService {
 		const imageUrl = new URL(src, finalUrl).href;
 		this.logger.log(
 			`Resolved cover image URL for product ${priceChartingProductId}: ${imageUrl}`,
+		);
+		return imageUrl;
+	}
+
+	/**
+	 * Public image URL for UI preview (add-game). Returns null if the page has no image or fetch fails.
+	 */
+	async resolveCoverPreviewImageUrl(
+		priceChartingProductId: string,
+	): Promise<string | null> {
+		const id = priceChartingProductId.trim();
+		if (!id) return null;
+		try {
+			return await this.loadCoverImageAbsoluteUrl(id);
+		} catch (e) {
+			this.logger.debug(
+				`Cover preview URL unavailable for ${id}: ${e instanceof Error ? e.message : String(e)}`,
+			);
+			return null;
+		}
+	}
+
+	/**
+	 * Fetch PriceCharting HTML, extract `#product_details img`, download image bytes.
+	 */
+	async scrapeCoverImage(priceChartingProductId: string): Promise<{
+		buffer: Buffer;
+		mime: string;
+	}> {
+		const imageUrl = await this.loadCoverImageAbsoluteUrl(
+			priceChartingProductId,
 		);
 
 		const imgRes = await fetch(imageUrl, {

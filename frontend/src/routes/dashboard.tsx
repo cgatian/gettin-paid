@@ -202,13 +202,12 @@ function DashboardPage() {
 						{formatPcCents(d.proposedTotalUsdCents ?? 0)}
 					</p>
 					<p className={supportingClass}>
-						Sum of proposed asking prices on active (unsold) copies. Only USD
-						offers are included (blank currency is treated as USD).
+						Sum of proposed asking prices on active (unsold) copies.
 					</p>
 					<p className={cx(supportingClass, css({ mt: "3" }))}>
 						{d.proposedOfferCopyCount ?? 0} active{" "}
 						{(d.proposedOfferCopyCount ?? 0) === 1 ? "copy" : "copies"} with a
-						USD proposed price.
+						proposed price.
 					</p>
 				</Card>
 			</div>
