@@ -170,6 +170,7 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 						to="/inventory"
 						label="Inventory"
 						icon={Archive}
+						activeOptions={{ exact: true }}
 						onNavigate={onClose}
 					/>
 					<NavItem

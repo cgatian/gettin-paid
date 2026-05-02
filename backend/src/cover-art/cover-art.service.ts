@@ -138,6 +138,81 @@ export class CoverArtService {
 		return pathExists(p);
 	}
 
+	private static mimeFromCoverExtension(ext: string): string | null {
+		switch (ext.toLowerCase()) {
+			case "jpg":
+			case "jpeg":
+				return "image/jpeg";
+			case "png":
+				return "image/png";
+			case "webp":
+				return "image/webp";
+			case "gif":
+				return "image/gif";
+			default:
+				return null;
+		}
+	}
+
+	/**
+	 * Find an on-disk cover file for this PriceCharting product id (`{id}.{jpg|png|…}`).
+	 */
+	async findStoredCoverFile(
+		priceChartingProductId: string,
+	): Promise<{ absPath: string; mime: string } | null> {
+		let base: string;
+		try {
+			base = safeCoverBasename(priceChartingProductId);
+		} catch {
+			return null;
+		}
+		const root = this.storageRoot();
+		let names: string[];
+		try {
+			names = await fs.readdir(root);
+		} catch {
+			return null;
+		}
+		const prefix = `${base}.`;
+		for (const name of names) {
+			if (!name.startsWith(prefix)) continue;
+			const ext = name.slice(prefix.length);
+			const mime = CoverArtService.mimeFromCoverExtension(ext);
+			if (!mime) continue;
+			const absPath = path.join(root, name);
+			if (await pathExists(absPath)) {
+				return { absPath, mime };
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Ensure cover bytes exist under COVER_STORAGE_PATH: reuse existing file or scrape + write.
+	 */
+	async ensureCoverImageStored(
+		priceChartingProductId: string,
+	): Promise<{ mime: string } | null> {
+		const id = priceChartingProductId.trim();
+		if (!id) return null;
+
+		const existing = await this.findStoredCoverFile(id);
+		if (existing) {
+			return { mime: existing.mime };
+		}
+
+		try {
+			const { buffer, mime } = await this.scrapeCoverImage(id);
+			await this.writeCoverFile(id, buffer, mime);
+			return { mime };
+		} catch (e) {
+			this.logger.debug(
+				`ensureCoverImageStored failed for ${id}: ${e instanceof Error ? e.message : String(e)}`,
+			);
+			return null;
+		}
+	}
+
 	/** Resolve absolute cover image URL from PriceCharting product browse page (same DOM as full scrape). */
 	private async loadCoverImageAbsoluteUrl(
 		priceChartingProductId: string,
@@ -182,24 +257,6 @@ export class CoverArtService {
 			`Resolved cover image URL for product ${priceChartingProductId}: ${imageUrl}`,
 		);
 		return imageUrl;
-	}
-
-	/**
-	 * Public image URL for UI preview (add-game). Returns null if the page has no image or fetch fails.
-	 */
-	async resolveCoverPreviewImageUrl(
-		priceChartingProductId: string,
-	): Promise<string | null> {
-		const id = priceChartingProductId.trim();
-		if (!id) return null;
-		try {
-			return await this.loadCoverImageAbsoluteUrl(id);
-		} catch (e) {
-			this.logger.debug(
-				`Cover preview URL unavailable for ${id}: ${e instanceof Error ? e.message : String(e)}`,
-			);
-			return null;
-		}
 	}
 
 	/**

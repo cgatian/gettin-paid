@@ -32,6 +32,7 @@ import { CoverArtService } from "../cover-art/cover-art.service";
 import { pickBestProduct } from "../oneoff/pick-product";
 import { PriceChartingService } from "../pricecharting/pricecharting.service";
 import { PrismaService } from "../prisma/prisma.service";
+import type { Request } from "express";
 import type { CreateCopyDto } from "./dto/create-copy.dto";
 import type { CreateEditionDto } from "./dto/create-edition.dto";
 import type { PatchCopyDto } from "./dto/patch-copy.dto";
@@ -148,16 +149,60 @@ export class InventoryService {
 		}
 	}
 
-	/** Cover art URL from PriceCharting product page (for add-game preview; no API token). */
+	/**
+	 * Ensures cover is on disk (scrape if needed), returns absolute URL to GET …/product-cover/:id.
+	 */
 	async productCoverPreview(
 		productId: string,
+		req: Request,
 	): Promise<PriceChartingProductCoverPreviewDto> {
 		const id = productId.trim();
 		if (!id) {
 			return { previewImageUrl: null };
 		}
-		const previewImageUrl = await this.coverArt.resolveCoverPreviewImageUrl(id);
+		const stored = await this.coverArt.ensureCoverImageStored(id);
+		if (!stored) {
+			return { previewImageUrl: null };
+		}
+		const previewImageUrl = this.absolutePublicApiUrl(
+			req,
+			`/product-cover/${encodeURIComponent(id)}`,
+		);
 		return { previewImageUrl };
+	}
+
+	private absolutePublicApiUrl(req: Request, pathname: string): string {
+		const proto = (
+			req.get("x-forwarded-proto") ||
+			req.protocol ||
+			"http"
+		).split(",")[0].trim();
+		const host = (
+			req.get("x-forwarded-host") ||
+			req.get("host") ||
+			"localhost"
+		).split(",")[0].trim();
+		const pathPart = pathname.startsWith("/") ? pathname : `/${pathname}`;
+		return `${proto}://${host}/api${pathPart}`;
+	}
+
+	/** Stream a stored cover by PriceCharting product id (used during add-game before an edition exists). */
+	async getProductCoverReadStream(
+		priceChartingProductId: string,
+	): Promise<{ stream: ReadStream; contentType: string }> {
+		const found = await this.coverArt.findStoredCoverFile(
+			priceChartingProductId.trim(),
+		);
+		if (!found) {
+			throw new NotFoundException("Cover not found");
+		}
+		this.logger.debug(
+			`getProductCoverReadStream: pcId=${priceChartingProductId.trim()} path=${found.absPath}`,
+		);
+		return {
+			stream: createReadStream(found.absPath),
+			contentType: found.mime,
+		};
 	}
 
 	async listEditions(priceChartingConsoleId?: string) {
@@ -351,21 +396,40 @@ export class InventoryService {
 			dto.priceChartingConsoleId,
 		);
 
+		const coverStored =
+			await this.coverArt.ensureCoverImageStored(priceChartingProductId);
+
 		const edition = await this.prisma.$transaction(async (tx) => {
-			const e = await tx.gameEdition.create({
-				data: {
-					title: dto.title,
-					priceChartingConsoleId: dto.priceChartingConsoleId,
-					publisher: dto.publisher ?? null,
-					priceChartingProductId,
-					...(upc !== null ? { upc } : {}),
-				} as Prisma.GameEditionUncheckedCreateInput,
+			const existing = await tx.gameEdition.findUnique({
+				where: { priceChartingProductId },
+				select: { id: true },
 			});
+
+			const editionId =
+				existing?.id ??
+				(
+					await tx.gameEdition.create({
+						data: {
+							title: dto.title,
+							priceChartingConsoleId: dto.priceChartingConsoleId,
+							publisher: dto.publisher ?? null,
+							priceChartingProductId,
+							...(upc !== null ? { upc } : {}),
+							...(coverStored
+								? {
+										coverFetchedAt: new Date(),
+										coverContentType: coverStored.mime,
+									}
+								: {}),
+						} as Prisma.GameEditionUncheckedCreateInput,
+					})
+				).id;
+
 			const purchaseAmt = dto.initialPurchaseAmount?.trim();
 			const offerAmt = dto.initialOfferAmount?.trim();
 			await tx.ownedCopy.create({
 				data: {
-					editionId: e.id,
+					editionId,
 					copyClassification:
 						dto.initialCopyClassification ?? CopyClassification.CIB,
 					classificationNotes: dto.initialCopyNotes ?? null,
@@ -379,7 +443,7 @@ export class InventoryService {
 						: null,
 				},
 			});
-			return e;
+			return { id: editionId };
 		});
 
 		if (dto.syncPriceCharting) {

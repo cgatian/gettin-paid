@@ -135,7 +135,7 @@ export type PriceChartingPricingPreviewDto = {
 	salesVolume: number | null;
 };
 
-/** GET /api/product-cover-preview — absolute URL for product art from PriceCharting HTML */
+/** GET /api/product-cover-preview — absolute URL to GET /api/product-cover/:productId (stored file; scraped if missing) */
 export type PriceChartingProductCoverPreviewDto = {
 	previewImageUrl: string | null;
 };

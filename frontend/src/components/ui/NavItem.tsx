@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
+import type { ComponentProps } from "react";
 import { css } from "styled-system/css";
 
 const navLinkClass = css({
@@ -51,6 +52,8 @@ interface NavItemProps {
 	label: string;
 	icon: LucideIcon;
 	external?: boolean;
+	/** Passed to TanStack Router `Link` — use `{ exact: true }` so `/inventory` does not match `/inventory/add`. */
+	activeOptions?: ComponentProps<typeof Link>["activeOptions"];
 	/** e.g. close mobile drawer after navigation */
 	onNavigate?: () => void;
 }
@@ -60,6 +63,7 @@ export function NavItem({
 	label,
 	icon: Icon,
 	external,
+	activeOptions,
 	onNavigate,
 }: NavItemProps) {
 	if (external) {
@@ -78,7 +82,12 @@ export function NavItem({
 	}
 
 	return (
-		<Link to={to} className={navLinkClass} onClick={() => onNavigate?.()}>
+		<Link
+			to={to}
+			className={navLinkClass}
+			onClick={() => onNavigate?.()}
+			{...(activeOptions !== undefined ? { activeOptions } : {})}
+		>
 			<Icon size={16} strokeWidth={1.5} />
 			<span>{label}</span>
 		</Link>

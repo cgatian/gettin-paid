@@ -9,9 +9,10 @@ import {
 	Patch,
 	Post,
 	Query,
+	Req,
 	Res,
 } from "@nestjs/common";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { CreateCopyDto } from "./dto/create-copy.dto";
 import { CreateEditionDto } from "./dto/create-edition.dto";
 import { ImportCsvDto } from "./dto/import-csv.dto";
@@ -42,8 +43,27 @@ export class InventoryController {
 	}
 
 	@Get("product-cover-preview")
-	productCoverPreview(@Query("productId") productId?: string) {
-		return this.inventory.productCoverPreview(productId ?? "");
+	productCoverPreview(
+		@Query("productId") productId: string | undefined,
+		@Req() req: Request,
+	) {
+		return this.inventory.productCoverPreview(productId ?? "", req);
+	}
+
+	@Get("product-cover/:productId")
+	async streamProductCover(
+		@Param("productId") productId: string,
+		@Res() res: Response,
+	) {
+		const { stream, contentType } =
+			await this.inventory.getProductCoverReadStream(productId);
+		res.setHeader("Content-Type", contentType);
+		res.setHeader("Cache-Control", "public, max-age=86400");
+		stream.on("error", () => {
+			if (!res.headersSent) res.sendStatus(500);
+			else res.end();
+		});
+		stream.pipe(res);
 	}
 
 	@Get("dashboard")
