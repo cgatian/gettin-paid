@@ -1,7 +1,9 @@
 import {
 	findBestPriceChartingConsoleIdFromRows,
+	type DashboardSummaryDto,
 	type PriceChartingProductSuggestionDto,
 	type PriceChartingSnapshotDto,
+	snapshotFmvCentsForClassification,
 } from "@gettin-paid/shared";
 import {
 	BadRequestException,
@@ -102,6 +104,87 @@ export class InventoryService {
 			},
 		});
 		return editions.map((e) => this.editionToDto(e));
+	}
+
+	/**
+	 * Games per system (editions) and total FMV of active copies from the latest
+	 * PriceCharting snapshot and each copy’s classification.
+	 */
+	async dashboardSummary(): Promise<DashboardSummaryDto> {
+		const [editionRows, activeCopies, editionCount] = await Promise.all([
+			this.prisma.gameEdition.findMany({
+				select: { priceChartingConsoleId: true },
+			}),
+			this.prisma.ownedCopy.findMany({
+				where: { soldAt: null },
+				include: {
+					edition: { include: { snapshot: true } },
+				},
+			}),
+			this.prisma.gameEdition.count(),
+		]);
+
+		const countByConsole = new Map<string | null, number>();
+		for (const e of editionRows) {
+			const k = e.priceChartingConsoleId;
+			countByConsole.set(k, (countByConsole.get(k) ?? 0) + 1);
+		}
+
+		const consoleIds = [...countByConsole.keys()].filter(
+			(id): id is string => id != null,
+		);
+		const consoleRows = await this.prisma.priceChartingConsole.findMany({
+			where: { id: { in: consoleIds } },
+			select: { id: true, name: true },
+		});
+		const nameById = new Map(consoleRows.map((c) => [c.id, c.name]));
+
+		const systems = [...countByConsole.entries()]
+			.map(([priceChartingConsoleId, count]) => ({
+				priceChartingConsoleId,
+				name:
+					priceChartingConsoleId == null
+						? "Unknown"
+						: (nameById.get(priceChartingConsoleId) ??
+							priceChartingConsoleId),
+				editionCount: count,
+			}))
+			.sort((a, b) => b.editionCount - a.editionCount);
+
+		let totalValueCents = 0;
+		let valuedCopyCount = 0;
+		let unpricedCopyCount = 0;
+		for (const c of activeCopies) {
+			const snap = c.edition.snapshot;
+			if (!snap) {
+				unpricedCopyCount++;
+				continue;
+			}
+			const cents = snapshotFmvCentsForClassification(
+				{
+					loosePrice: snap.loosePrice,
+					cibPrice: snap.cibPrice,
+					newPrice: snap.newPrice,
+					gradedPrice: snap.gradedPrice,
+				},
+				c.copyClassification,
+			);
+			if (cents == null) {
+				unpricedCopyCount++;
+				continue;
+			}
+			totalValueCents += cents;
+			valuedCopyCount++;
+		}
+
+		return {
+			systems,
+			totalValueCents,
+			valuedCopyCount,
+			unpricedCopyCount,
+			activeCopyCount: activeCopies.length,
+			editionCount,
+		};
 	}
 
 	async getEdition(id: string) {

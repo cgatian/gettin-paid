@@ -33,6 +33,11 @@ export class InventoryController {
 		return this.inventory.productSuggestions(q ?? "", priceChartingConsoleId);
 	}
 
+	@Get("dashboard")
+	dashboard() {
+		return this.inventory.dashboardSummary();
+	}
+
 	@Get("editions")
 	async list(
 		@Query("console") console?: string,

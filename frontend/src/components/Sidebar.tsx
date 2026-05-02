@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Archive, FilePlus, Info, X } from "lucide-react";
+import { Archive, FilePlus, Info, LayoutDashboard, X } from "lucide-react";
 import { css } from "styled-system/css";
 import { NavItem } from "#/components/ui/NavItem";
 
@@ -144,6 +144,12 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
 			<nav className={navClass} aria-label="Main">
 				<div className={navSectionClass}>
+					<NavItem
+						to="/dashboard"
+						label="Dashboard"
+						icon={LayoutDashboard}
+						onNavigate={onClose}
+					/>
 					<NavItem
 						to="/inventory"
 						label="Inventory"

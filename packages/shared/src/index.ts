@@ -142,3 +142,36 @@ export type EditionDetailDto = GameEditionDto & {
 	copies: OwnedCopyDto[];
 	snapshot: PriceChartingSnapshotDto | null;
 };
+
+/** One slice for “games per system” on the dashboard */
+export type DashboardSystemCountDto = {
+	priceChartingConsoleId: string | null;
+	name: string;
+	editionCount: number;
+};
+
+/** GET /api/dashboard */
+export type DashboardSummaryDto = {
+	systems: DashboardSystemCountDto[];
+	/** Sum of snapshot FMV (USD pennies) for active copies that map to a price column */
+	totalValueCents: number;
+	/** Active (unsold) copies included in totalValueCents */
+	valuedCopyCount: number;
+	/** Active copies with no usable FMV (no snapshot, unmapped classification, or null price) */
+	unpricedCopyCount: number;
+	activeCopyCount: number;
+	editionCount: number;
+};
+
+/** FMV in USD pennies from a snapshot row for a copy classification, or null if not applicable */
+export function snapshotFmvCentsForClassification(
+	snap: Pick<
+		PriceChartingSnapshotDto,
+		"loosePrice" | "cibPrice" | "newPrice" | "gradedPrice"
+	>,
+	classification: CopyClassification,
+): number | null {
+	const field = classificationToSnapshotField[classification];
+	if (field === null) return null;
+	return snap[field] ?? null;
+}
