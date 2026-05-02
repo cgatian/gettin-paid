@@ -184,7 +184,7 @@ export interface UtilityValues {
 	srOnly: boolean;
 	debug: boolean;
 	containerName: CssProperties["containerName"];
-	colorPalette: "background" | "surface" | "border" | "borderSubtle" | "borderFaint" | "foreground" | "foregroundMuted" | "accent" | "accentHover" | "accentGreen" | "accentGreenHover" | "navActive" | "navHover" | "danger" | "dangerHover";
+	colorPalette: "background" | "surface" | "border" | "borderSubtle" | "borderFaint" | "foreground" | "foregroundMuted" | "accent" | "accentHover" | "accentGreen" | "accentGreenHover" | "navActive" | "navHover" | "danger" | "dangerHover" | "link" | "linkHover";
 	textStyle: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl" | "7xl" | "8xl" | "9xl";
 }
 

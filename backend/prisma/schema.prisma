@@ -33,6 +33,10 @@ model GameEdition {
   priceChartingProductId   String?  @unique
   /// PriceCharting Console ID (G-codes); FK to PriceChartingConsole
   priceChartingConsoleId   String?
+  /// Set when cover image was successfully scraped; file on disk is `{priceChartingProductId}.{ext}` under COVER_STORAGE_PATH
+  coverFetchedAt           DateTime?
+  /// MIME type for GET …/cover Content-Type (e.g. image/jpeg)
+  coverContentType         String?
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 

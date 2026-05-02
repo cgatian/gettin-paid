@@ -100,6 +100,10 @@ export type GameEditionDto = {
 	priceChartingConsoleId: string | null;
 	/** Resolved from {@link PRICECHARTING_CONSOLE_ID_TO_NAME}; null if id missing or unknown */
 	priceChartingConsoleName: string | null;
+	/** True when a cover image was stored (see coverFetchedAt) */
+	hasCover: boolean;
+	/** ISO timestamp when cover scrape succeeded; null if none */
+	coverFetchedAt: string | null;
 	copyCount?: number;
 	/** Set on GET /editions: unsold copies with FMV and optional proposed (offer) price */
 	activeCopies?: EditionListActiveCopyDto[];
@@ -185,6 +189,26 @@ export type BulkRefreshMarketResultDto = {
 		upc: string;
 		message: string;
 	}[];
+};
+
+/** POST /api/editions/fetch-all-covers */
+export type FetchAllCoversResultDto = {
+	total: number;
+	ok: number;
+	skipped: number;
+	failed: number;
+	failures: {
+		editionId: string;
+		title: string;
+		upc: string;
+		message: string;
+	}[];
+};
+
+/** POST /api/editions/:id/fetch-cover */
+export type FetchEditionCoverResponseDto = EditionDetailDto & {
+	/** True when cover was already on disk and scrape was skipped */
+	coverAlreadyStored?: boolean;
 };
 
 /** GET /api/dashboard */

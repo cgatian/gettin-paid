@@ -1,6 +1,8 @@
 import {
 	type BulkImportResultDto,
 	type BulkRefreshMarketResultDto,
+	type FetchAllCoversResultDto,
+	type FetchEditionCoverResponseDto,
 	findBestPriceChartingConsoleIdFromRows,
 	type DashboardSummaryDto,
 	type PriceChartingPricingPreviewDto,
@@ -12,9 +14,12 @@ import {
 	BadRequestException,
 	HttpException,
 	Injectable,
+	Logger,
 	NotFoundException,
 	ServiceUnavailableException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { createReadStream, type ReadStream } from "node:fs";
 import {
 	CopyClassification,
 	type GameEdition,
@@ -22,6 +27,7 @@ import {
 	type PriceChartingProductSnapshot,
 	Prisma,
 } from "@prisma/client";
+import { CoverArtService } from "../cover-art/cover-art.service";
 import { pickBestProduct } from "../oneoff/pick-product";
 import { PriceChartingService } from "../pricecharting/pricecharting.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -35,12 +41,30 @@ function d(s: string | null | undefined): Prisma.Decimal | null {
 	return new Prisma.Decimal(s);
 }
 
+const EDITION_ID_UUID =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 @Injectable()
 export class InventoryService {
+	private readonly logger = new Logger(InventoryService.name);
+
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly pricecharting: PriceChartingService,
+		private readonly coverArt: CoverArtService,
+		private readonly config: ConfigService,
 	) {}
+
+	/** Minimum pause between PriceCharting HTML/image hits when bulk-fetching covers (403 avoidance). */
+	private coverScrapeIntervalMs(): number {
+		const raw = Number(this.config.get("COVER_SCRAPE_MIN_INTERVAL_MS") ?? 2000);
+		if (!Number.isFinite(raw)) return 2000;
+		return Math.max(2000, Math.floor(raw));
+	}
 
 	/** PriceCharting official console list (from DB, same as api-documentation#console-ids) */
 	async platformsMeta() {
@@ -471,6 +495,231 @@ export class InventoryService {
 		};
 	}
 
+	async fetchEditionCover(
+		editionId: string,
+		force: boolean,
+	): Promise<FetchEditionCoverResponseDto> {
+		await this.ensureEdition(editionId);
+		const edition = await this.prisma.gameEdition.findUniqueOrThrow({
+			where: { id: editionId },
+			select: {
+				id: true,
+				priceChartingProductId: true,
+				coverFetchedAt: true,
+				coverContentType: true,
+			},
+		});
+		if (!edition.priceChartingProductId?.trim()) {
+			throw new BadRequestException(
+				"Edition has no PriceCharting product id",
+			);
+		}
+		const pcId = edition.priceChartingProductId.trim();
+		this.logger.log(
+			`fetchEditionCover: editionId=${editionId} priceChartingProductId=${pcId} force=${force}`,
+		);
+		const fileOk = await this.coverArt.coverFileExistsForPriceChartingProduct(
+			pcId,
+			edition.coverContentType,
+		);
+		if (!force && edition.coverFetchedAt && fileOk) {
+			this.logger.log(
+				`fetchEditionCover: skipped (already on disk) editionId=${editionId} pcId=${pcId}`,
+			);
+			const detail = await this.getEdition(editionId);
+			return { ...detail, coverAlreadyStored: true };
+		}
+		if (edition.coverFetchedAt && !fileOk) {
+			this.logger.warn(
+				`fetchEditionCover: DB had cover metadata but file missing — clearing editionId=${editionId} pcId=${pcId}`,
+			);
+			await this.prisma.gameEdition.update({
+				where: { id: editionId },
+				data: { coverFetchedAt: null, coverContentType: null },
+			});
+		}
+		try {
+			const { buffer, mime } = await this.coverArt.scrapeCoverImage(pcId);
+			await this.coverArt.writeCoverFile(pcId, buffer, mime);
+			await this.prisma.gameEdition.update({
+				where: { id: editionId },
+				data: {
+					coverFetchedAt: new Date(),
+					coverContentType: mime,
+				},
+			});
+			this.logger.log(
+				`fetchEditionCover: success editionId=${editionId} pcId=${pcId} mime=${mime}`,
+			);
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : "Cover fetch failed";
+			this.logger.warn(
+				`fetchEditionCover: failed editionId=${editionId} pcId=${pcId}: ${msg}`,
+			);
+			throw new BadRequestException(msg);
+		}
+		return this.getEdition(editionId);
+	}
+
+	async fetchAllCovers(force: boolean): Promise<FetchAllCoversResultDto> {
+		const editions = await this.prisma.gameEdition.findMany({
+			orderBy: { title: "asc" },
+			select: {
+				id: true,
+				title: true,
+				upc: true,
+				priceChartingProductId: true,
+				coverFetchedAt: true,
+				coverContentType: true,
+			},
+		});
+		const failures: FetchAllCoversResultDto["failures"] = [];
+		let skipped = 0;
+		type QueueItem = {
+			id: string;
+			title: string;
+			upc: string;
+			pcId: string;
+			clearStaleDb: boolean;
+		};
+		const queue: QueueItem[] = [];
+
+		for (let i = 0; i < editions.length; i++) {
+			const e = editions[i];
+			if (!e.priceChartingProductId?.trim()) {
+				this.logger.warn(
+					`fetchAllCovers [${i + 1}/${editions.length}] skip (no PC id): "${e.title}" (${e.upc})`,
+				);
+				failures.push({
+					editionId: e.id,
+					title: e.title,
+					upc: e.upc,
+					message: "No PriceCharting product id",
+				});
+				continue;
+			}
+			const pcId = e.priceChartingProductId.trim();
+			const fileOk = await this.coverArt.coverFileExistsForPriceChartingProduct(
+				pcId,
+				e.coverContentType,
+			);
+			if (!force && e.coverFetchedAt && fileOk) {
+				this.logger.log(
+					`fetchAllCovers [${i + 1}/${editions.length}] skipped (stored): "${e.title}" pcId=${pcId}`,
+				);
+				skipped++;
+				continue;
+			}
+			queue.push({
+				id: e.id,
+				title: e.title,
+				upc: e.upc,
+				pcId,
+				clearStaleDb: !!(e.coverFetchedAt && !fileOk),
+			});
+		}
+
+		const intervalMs = this.coverScrapeIntervalMs();
+		this.logger.log(
+			`fetchAllCovers: editions=${editions.length} toScrape=${queue.length} skipped=${skipped} force=${force} throttleMs=${intervalMs}`,
+		);
+
+		let ok = 0;
+		for (let i = 0; i < queue.length; i++) {
+			if (i > 0) await sleep(intervalMs);
+			const item = queue[i];
+			if (item.clearStaleDb) {
+				this.logger.warn(
+					`fetchAllCovers scrape [${i + 1}/${queue.length}] stale DB row, clearing: "${item.title}" pcId=${item.pcId}`,
+				);
+				await this.prisma.gameEdition.update({
+					where: { id: item.id },
+					data: { coverFetchedAt: null, coverContentType: null },
+				});
+			}
+			this.logger.log(
+				`fetchAllCovers scrape [${i + 1}/${queue.length}] "${item.title}" pcId=${item.pcId}`,
+			);
+			try {
+				const { buffer, mime } = await this.coverArt.scrapeCoverImage(item.pcId);
+				await this.coverArt.writeCoverFile(item.pcId, buffer, mime);
+				await this.prisma.gameEdition.update({
+					where: { id: item.id },
+					data: {
+						coverFetchedAt: new Date(),
+						coverContentType: mime,
+					},
+				});
+				ok++;
+				this.logger.log(
+					`fetchAllCovers scrape [${i + 1}/${queue.length}] ok: "${item.title}" pcId=${item.pcId} mime=${mime}`,
+				);
+			} catch (err) {
+				const message = exceptionMessage(err);
+				this.logger.warn(
+					`fetchAllCovers scrape [${i + 1}/${queue.length}] failed: "${item.title}" pcId=${item.pcId}: ${message}`,
+				);
+				failures.push({
+					editionId: item.id,
+					title: item.title,
+					upc: item.upc,
+					message,
+				});
+			}
+		}
+		this.logger.log(
+			`fetchAllCovers: done total=${editions.length} ok=${ok} skipped=${skipped} failed=${failures.length}`,
+		);
+		return {
+			total: editions.length,
+			ok,
+			skipped,
+			failed: failures.length,
+			failures,
+		};
+	}
+
+	async getCoverReadStream(
+		editionId: string,
+	): Promise<{ stream: ReadStream; contentType: string }> {
+		if (!EDITION_ID_UUID.test(editionId)) {
+			throw new BadRequestException("Invalid edition id");
+		}
+		const edition = await this.prisma.gameEdition.findUnique({
+			where: { id: editionId },
+			select: {
+				coverFetchedAt: true,
+				coverContentType: true,
+				priceChartingProductId: true,
+			},
+		});
+		if (!edition?.coverFetchedAt || !edition.coverContentType) {
+			throw new NotFoundException("No cover for this edition");
+		}
+		const pcId = edition.priceChartingProductId?.trim();
+		if (!pcId) {
+			throw new NotFoundException("No cover for this edition");
+		}
+		const exists = await this.coverArt.coverFileExistsForPriceChartingProduct(
+			pcId,
+			edition.coverContentType,
+		);
+		if (!exists) {
+			throw new NotFoundException("Cover file missing");
+		}
+		const absPath = this.coverArt.coverFileAbsolute(
+			pcId,
+			edition.coverContentType,
+		);
+		this.logger.debug(
+			`getCoverReadStream: editionId=${editionId} pcId=${pcId} path=${absPath}`,
+		);
+		return {
+			stream: createReadStream(absPath),
+			contentType: edition.coverContentType,
+		};
+	}
+
 	/**
 	 * Every new edition must get a PriceCharting product id for pricing lookups.
 	 * Try UPC + console first, then title search + pick (same heuristics as the CSV script).
@@ -735,6 +984,18 @@ export class InventoryService {
 
 	async deleteEdition(id: string) {
 		await this.ensureEdition(id);
+		const row = await this.prisma.gameEdition.findUnique({
+			where: { id },
+			select: { priceChartingProductId: true },
+		});
+		if (row?.priceChartingProductId?.trim()) {
+			this.logger.log(
+				`deleteEdition: removing cover files for PriceCharting id ${row.priceChartingProductId.trim()} (edition ${id})`,
+			);
+		}
+		await this.coverArt.removeCoverFilesForPriceChartingProduct(
+			row?.priceChartingProductId,
+		);
 		await this.prisma.gameEdition.delete({ where: { id } });
 	}
 
@@ -762,6 +1023,8 @@ export class InventoryService {
 			priceChartingProductId: e.priceChartingProductId,
 			priceChartingConsoleId: e.priceChartingConsoleId,
 			priceChartingConsoleName: e.priceChartingConsole?.name ?? null,
+			hasCover: e.coverFetchedAt != null,
+			coverFetchedAt: e.coverFetchedAt?.toISOString() ?? null,
 			...(e._count !== undefined ? { copyCount: e._count.copies } : {}),
 		};
 	}

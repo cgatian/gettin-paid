@@ -11,3 +11,6 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+# Local cover images (see backend COVER_STORAGE_PATH)
+backend/storage/

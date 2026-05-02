@@ -70,6 +70,34 @@ export class InventoryController {
 		return this.inventory.refreshAllMarket(filter);
 	}
 
+	@Post("editions/fetch-all-covers")
+	fetchAllCovers(@Query("force") forceRaw?: string) {
+		const force = forceRaw === "true" || forceRaw === "1";
+		return this.inventory.fetchAllCovers(force);
+	}
+
+	@Post("editions/:id/fetch-cover")
+	fetchEditionCover(
+		@Param("id") id: string,
+		@Query("force") forceRaw?: string,
+	) {
+		const force = forceRaw === "true" || forceRaw === "1";
+		return this.inventory.fetchEditionCover(id, force);
+	}
+
+	@Get("editions/:id/cover")
+	async streamEditionCover(@Param("id") id: string, @Res() res: Response) {
+		const { stream, contentType } =
+			await this.inventory.getCoverReadStream(id);
+		res.setHeader("Content-Type", contentType);
+		res.setHeader("Cache-Control", "public, max-age=86400");
+		stream.on("error", () => {
+			if (!res.headersSent) res.sendStatus(500);
+			else res.end();
+		});
+		stream.pipe(res);
+	}
+
 	@Get("editions/:id")
 	getOne(@Param("id") id: string) {
 		return this.inventory.getEdition(id);

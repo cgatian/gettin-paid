@@ -31,6 +31,19 @@ export async function apiFetch<T>(
 	return res.json() as Promise<T>;
 }
 
+/** POST with optional JSON body; same URL rules as {@link apiFetch}. */
+export async function apiFetchPost<T>(
+	path: string,
+	body?: unknown,
+	init?: Omit<RequestInit, "body" | "method">,
+): Promise<T> {
+	return apiFetch<T>(path, {
+		...init,
+		method: "POST",
+		...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+	});
+}
+
 export async function apiFetchBlob(path: string): Promise<Blob> {
 	const base = getApiBase().replace(/\/$/, "");
 	const p = path.startsWith("/") ? path : `/${path}`;

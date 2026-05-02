@@ -1,6 +1,7 @@
 import {
 	CopyClassification,
 	type EditionDetailDto,
+	type FetchEditionCoverResponseDto,
 	labelPriceChartingConsole,
 	type OwnedCopyDto,
 	type PriceChartingPricingPreviewDto,
@@ -22,7 +23,7 @@ import {
 	Select,
 	inputClass,
 } from "#/components/ui/Input";
-import { apiFetch } from "#/lib/api";
+import { apiFetch, apiFetchPost, getApiBase } from "#/lib/api";
 import { formatMoneyAmount, formatPcCents } from "#/lib/money";
 
 export const Route = createFileRoute("/inventory/$editionId")({
@@ -105,6 +106,16 @@ const lowOfferWarningClass = css({
 	py: "2",
 });
 
+function editionDetailCoverSrc(
+	e: Pick<EditionDetailDto, "id" | "coverFetchedAt" | "hasCover">,
+): string | null {
+	if (!e.hasCover || !e.coverFetchedAt) return null;
+	const base = getApiBase().replace(/\/$/, "");
+	const t = Date.parse(e.coverFetchedAt);
+	if (!Number.isFinite(t)) return null;
+	return `${base}/api/editions/${encodeURIComponent(e.id)}/cover?t=${t}`;
+}
+
 function editionConsoleBadge(
 	e: Pick<
 		EditionDetailDto,
@@ -124,10 +135,10 @@ const backLinkClass = css({
 	alignItems: "center",
 	gap: "1",
 	fontSize: "sm",
-	color: "foregroundMuted",
+	color: "link",
 	textDecoration: "none",
 	mb: "5",
-	_hover: { color: "foreground" },
+	_hover: { color: "linkHover" },
 	transition: "color 120ms ease",
 });
 
@@ -151,6 +162,14 @@ const metaRowClass = css({
 const metaTextClass = css({
 	fontSize: "sm",
 	color: "foregroundMuted",
+});
+
+const externalLinkClass = css({
+	fontSize: "sm",
+	color: "link",
+	textDecoration: "underline",
+	textUnderlineOffset: "2px",
+	_hover: { color: "linkHover" },
 });
 
 const gridClass = css({
@@ -387,6 +406,7 @@ function EditionDetail() {
 	const queryClient = useQueryClient();
 	const [copyError, setCopyError] = useState<string | null>(null);
 	const [refreshError, setRefreshError] = useState<string | null>(null);
+	const [fetchCoverError, setFetchCoverError] = useState<string | null>(null);
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [deleteError, setDeleteError] = useState<string | null>(null);
 	const [classification, setClassification] = useState<CopyClassification>(
@@ -499,6 +519,25 @@ function EditionDetail() {
 		},
 		onError: (e) => {
 			setRefreshError(e instanceof Error ? e.message : "Refresh failed");
+		},
+	});
+
+	const fetchCoverArt = useMutation({
+		mutationFn: (force: boolean) =>
+			apiFetchPost<FetchEditionCoverResponseDto>(
+				`/editions/${editionId}/fetch-cover${force ? "?force=true" : ""}`,
+			),
+		onSuccess: (data) => {
+			setFetchCoverError(null);
+			const { coverAlreadyStored: _skipped, ...edition } = data;
+			void _skipped;
+			queryClient.setQueryData(["edition", editionId], edition);
+			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+		},
+		onError: (e) => {
+			setFetchCoverError(
+				e instanceof Error ? e.message : "Could not fetch cover",
+			);
 		},
 	});
 
@@ -708,54 +747,139 @@ function EditionDetail() {
 				<div
 					className={css({
 						display: "flex",
-						flexDir: { base: "column", sm: "row" },
-						justifyContent: { base: "flex-start", sm: "space-between" },
-						alignItems: { base: "flex-start", sm: "flex-start" },
-						gap: "4",
-						flexWrap: "wrap",
+						flexDir: { base: "column", md: "row" },
+						gap: "6",
+						alignItems: { base: "stretch", md: "flex-start" },
 						mb: "2",
 					})}
 				>
-					<h1 className={cx(pageTitleClass, css({ mb: "0" }))}>{e.title}</h1>
-					<Button
-						variant="danger"
-						size="sm"
-						onClick={() => {
-							setDeleteModalOpen(true);
-							setDeleteError(null);
-						}}
+					<div
+						className={css({
+							flexShrink: "0",
+							width: { base: "100%", md: "160px" },
+							maxW: "100%",
+						})}
 					>
-						Delete game
-					</Button>
-				</div>
-				<div className={metaRowClass}>
-					<Badge variant="default">{editionConsoleBadge(e)}</Badge>
-					<span className={metaTextClass}>UPC {e.upc}</span>
-					{e.publisher && (
-						<span className={metaTextClass}>· {e.publisher}</span>
-					)}
-					{priceChartingBrowseUrl && (
-						<>
-							<span className={metaTextClass} aria-hidden="true">
-								·
-							</span>
-							<a
-								href={priceChartingBrowseUrl}
-								target="_blank"
-								rel="noopener noreferrer"
-								className={cx(
-									metaTextClass,
-									css({
-										textDecoration: "underline",
-										textUnderlineOffset: "2px",
-										_hover: { color: "foreground" },
-									}),
-								)}
+						{editionDetailCoverSrc(e) ? (
+							<img
+								src={editionDetailCoverSrc(e) ?? ""}
+								alt={e.title}
+								className={css({
+									width: "100%",
+									maxH: "240px",
+									objectFit: "contain",
+									borderRadius: "card",
+									borderWidth: "1px",
+									borderStyle: "solid",
+									borderColor: "border",
+									bg: "surface",
+								})}
+							/>
+						) : (
+							<div
+								className={css({
+									width: "100%",
+									minH: "120px",
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									borderRadius: "card",
+									borderWidth: "1px",
+									borderStyle: "dashed",
+									borderColor: "border",
+									color: "foregroundMuted",
+									fontSize: "sm",
+								})}
 							>
-								View on PriceCharting
-							</a>
-						</>
-					)}
+								No cover yet
+							</div>
+						)}
+					</div>
+					<div className={css({ flex: "1", minW: "0" })}>
+						<div
+							className={css({
+								display: "flex",
+								flexDir: { base: "column", sm: "row" },
+								justifyContent: { base: "flex-start", sm: "space-between" },
+								alignItems: { base: "flex-start", sm: "flex-start" },
+								gap: "4",
+								flexWrap: "wrap",
+								mb: "2",
+							})}
+						>
+							<h1 className={cx(pageTitleClass, css({ mb: "0" }))}>
+								{e.title}
+							</h1>
+							<div
+								className={css({
+									display: "flex",
+									flexWrap: "wrap",
+									gap: "2",
+									alignItems: "center",
+								})}
+							>
+								{e.priceChartingProductId ? (
+									<Button
+										type="button"
+										variant="secondary"
+										size="sm"
+										disabled={fetchCoverArt.isPending}
+										onClick={() => {
+											setFetchCoverError(null);
+											fetchCoverArt.mutate(e.hasCover);
+										}}
+									>
+										{fetchCoverArt.isPending
+											? "Cover…"
+											: e.hasCover
+												? "Refresh cover"
+												: "Fetch cover"}
+									</Button>
+								) : null}
+								<Button
+									variant="danger"
+									size="sm"
+									onClick={() => {
+										setDeleteModalOpen(true);
+										setDeleteError(null);
+									}}
+								>
+									Delete game
+								</Button>
+							</div>
+						</div>
+						<div
+							className={css({
+								display: "flex",
+								flexDir: "column",
+								alignItems: "flex-start",
+								gap: "1",
+							})}
+						>
+							<div className={metaRowClass}>
+								<Badge variant="default">{editionConsoleBadge(e)}</Badge>
+								<span className={metaTextClass}>UPC {e.upc}</span>
+								{e.publisher && (
+									<span className={metaTextClass}>· {e.publisher}</span>
+								)}
+							</div>
+							{priceChartingBrowseUrl ? (
+								<a
+									href={priceChartingBrowseUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									className={externalLinkClass}
+								>
+									View on PriceCharting
+								</a>
+							) : null}
+						</div>
+						{fetchCoverError && (
+							<p className={css({ fontSize: "sm", color: "danger", mt: "2" })}>
+								{fetchCoverError}
+							</p>
+						)}
+					</div>
 				</div>
 			</div>
 

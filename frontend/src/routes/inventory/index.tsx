@@ -1,19 +1,16 @@
-import type {
-	BulkRefreshMarketResultDto,
-	GameEditionDto,
-} from "@gettin-paid/shared";
+import type { GameEditionDto } from "@gettin-paid/shared";
 import {
 	labelPriceChartingConsole,
 	POPULAR_PRICECHARTING_CONSOLE_IDS,
 } from "@gettin-paid/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { css, cx } from "styled-system/css";
 import { Badge } from "#/components/ui/Badge";
 import { Button, buttonVariants } from "#/components/ui/Button";
 import { Card } from "#/components/ui/Card";
-import { apiFetch } from "#/lib/api";
+import { apiFetch, getApiBase } from "#/lib/api";
 import { formatMoneyAmount, formatPcCents } from "#/lib/money";
 
 const popularSet = new Set(POPULAR_PRICECHARTING_CONSOLE_IDS);
@@ -43,6 +40,18 @@ function editionConsoleLabel(
 
 function classificationLabel(c: string) {
 	return c.replace(/_/g, " ");
+}
+
+function editionCoverSrc(
+	id: string,
+	coverFetchedAt: string | null,
+	hasCover: boolean,
+): string | null {
+	if (!hasCover || !coverFetchedAt) return null;
+	const base = getApiBase().replace(/\/$/, "");
+	const t = Date.parse(coverFetchedAt);
+	if (!Number.isFinite(t)) return null;
+	return `${base}/api/editions/${encodeURIComponent(id)}/cover?t=${t}`;
 }
 
 const pageClass = css({ p: "6" });
@@ -259,15 +268,7 @@ const errorTextClass = css({
 });
 
 function InventoryList() {
-	const queryClient = useQueryClient();
 	const { console: consoleFilter } = Route.useSearch();
-	const [bulkResult, setBulkResult] = useState<BulkRefreshMarketResultDto | null>(
-		null,
-	);
-	const [bulkProgress, setBulkProgress] = useState<{
-		current: number;
-		total: number;
-	} | null>(null);
 	const platformsQuery = useQuery({
 		queryKey: ["platforms"],
 		queryFn: () => apiFetch<{ id: string; name: string }[]>("/platforms"),
@@ -312,53 +313,6 @@ function InventoryList() {
 		},
 	});
 
-	const bulkRefresh = useMutation({
-		mutationFn: async (editions: GameEditionDto[]) => {
-			const total = editions.length;
-			if (total === 0) {
-				return {
-					total: 0,
-					ok: 0,
-					failed: 0,
-					failures: [],
-				} satisfies BulkRefreshMarketResultDto;
-			}
-			const failures: BulkRefreshMarketResultDto["failures"] = [];
-			let ok = 0;
-			for (let i = 0; i < editions.length; i++) {
-				const e = editions[i];
-				setBulkProgress({ current: i + 1, total });
-				try {
-					await apiFetch(`/editions/${e.id}/refresh-market`, {
-						method: "POST",
-					});
-					ok++;
-				} catch (err) {
-					failures.push({
-						editionId: e.id,
-						title: e.title,
-						upc: e.upc,
-						message: err instanceof Error ? err.message : String(err),
-					});
-				}
-			}
-			return {
-				total,
-				ok,
-				failed: failures.length,
-				failures,
-			} satisfies BulkRefreshMarketResultDto;
-		},
-		onSuccess: (r) => {
-			setBulkResult(r);
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-		},
-		onSettled: () => {
-			setBulkProgress(null);
-		},
-	});
-
 	return (
 		<div className={pageClass}>
 			<div className={pageHeaderClass}>
@@ -371,25 +325,6 @@ function InventoryList() {
 						alignItems: "center",
 					})}
 				>
-					<Button
-						type="button"
-						variant="secondary"
-						size="sm"
-						disabled={
-							bulkRefresh.isPending || !data?.length || isLoading || isError
-						}
-						onClick={() => {
-							if (!data?.length || bulkRefresh.isPending) return;
-							setBulkResult(null);
-							bulkRefresh.mutate(data);
-						}}
-					>
-						{bulkRefresh.isPending && bulkProgress
-							? `Refreshing… ${bulkProgress.current}/${bulkProgress.total}`
-							: bulkRefresh.isPending
-								? "Refreshing…"
-								: "Refresh all prices"}
-					</Button>
 					<Link
 						to="/inventory/add"
 						className={buttonVariants({ variant: "primary", size: "sm" })}
@@ -398,20 +333,6 @@ function InventoryList() {
 					</Link>
 				</div>
 			</div>
-
-			{bulkRefresh.isPending && bulkProgress && (
-				<p
-					className={css({
-						fontSize: "sm",
-						color: "foregroundMuted",
-						mb: "4",
-						mt: "-2",
-					})}
-				>
-					Refreshing market prices… {bulkProgress.current}/
-					{bulkProgress.total}
-				</p>
-			)}
 
 			<div className={filtersRowClass}>
 				<span className={filterLabelClass}>Console:</span>
@@ -483,70 +404,6 @@ function InventoryList() {
 				)}
 			</div>
 
-			{bulkRefresh.isError && (
-				<div className={errorCardClass}>
-					<p className={errorTitleClass}>Bulk refresh failed.</p>
-					<p className={errorTextClass}>
-						{bulkRefresh.error instanceof Error
-							? bulkRefresh.error.message
-							: "Unknown error"}
-					</p>
-				</div>
-			)}
-
-			{bulkResult && !bulkRefresh.isPending && (
-				<div
-					className={css({
-						mb: "4",
-						p: "4",
-						borderRadius: "card",
-						bg: "surface",
-						borderWidth: "1px",
-						borderStyle: "solid",
-						borderColor: "border",
-						fontSize: "sm",
-					})}
-				>
-					<p className={css({ margin: "0 0 8px 0", color: "foreground" })}>
-						Market snapshots updated: {bulkResult.ok} of {bulkResult.total}{" "}
-						succeeded
-						{bulkResult.failed > 0
-							? ` (${bulkResult.failed} could not be refreshed)`
-							: ""}
-						{consoleFilter ? (
-							<span className={css({ color: "foregroundMuted" })}>
-								{" "}
-								(filtered by console)
-							</span>
-						) : null}
-						.
-					</p>
-					{bulkResult.failures.length > 0 && (
-						<ul
-							className={css({
-								margin: "0",
-								paddingLeft: "1.25rem",
-								color: "foregroundMuted",
-							})}
-						>
-							{bulkResult.failures.slice(0, 8).map(
-								(f: BulkRefreshMarketResultDto["failures"][number]) => (
-									<li key={f.editionId}>
-										{f.title} (UPC {f.upc}): {f.message}
-									</li>
-								)
-							)}
-							{bulkResult.failures.length > 8 && (
-								<li>
-									… and {bulkResult.failures.length - 8} more; open each edition
-									to retry individually.
-								</li>
-							)}
-						</ul>
-					)}
-				</div>
-			)}
-
 			{isLoading && <p className={stateTextClass}>Loading editions…</p>}
 
 			{isError && (
@@ -596,6 +453,11 @@ function InventoryList() {
 						{data.map((e) => {
 							const copies = e.activeCopies ?? [];
 							const n = copies.length;
+							const thumbSrc = editionCoverSrc(
+								e.id,
+								e.coverFetchedAt ?? null,
+								e.hasCover,
+							);
 							return (
 								<li key={e.id}>
 									<Link
@@ -604,6 +466,31 @@ function InventoryList() {
 										className={editionCardClass}
 									>
 										<div className={editionTitleBlockClass}>
+											<div
+												className={css({
+													display: "flex",
+													alignItems: "flex-start",
+													gap: "3",
+												})}
+											>
+												{thumbSrc ? (
+													<img
+														src={thumbSrc}
+														alt=""
+														className={css({
+															width: "48px",
+															height: "48px",
+															objectFit: "cover",
+															borderRadius: "btn",
+															flexShrink: "0",
+															borderWidth: "1px",
+															borderStyle: "solid",
+															borderColor: "border",
+															bg: "surface",
+														})}
+													/>
+												) : null}
+												<div className={css({ minWidth: "0", flex: "1" })}>
 											<p className={editionTitleClass}>{e.title}</p>
 											<p className={editionMetaClass}>
 												{editionConsoleLabel(e)}
@@ -611,6 +498,8 @@ function InventoryList() {
 													? ` · ${e.copyCount} ${e.copyCount === 1 ? "copy" : "copies"}`
 													: ""}
 											</p>
+												</div>
+											</div>
 										</div>
 										{copies.map((row, i) => (
 											<div

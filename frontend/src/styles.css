@@ -27,7 +27,10 @@ body {
   background: rgba(133, 59, 206, 0.3);
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/** Must live in a layer so Panda utilities (e.g. c_link) can override color. */
+@layer reset {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }

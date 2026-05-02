@@ -59,6 +59,14 @@ const tokens = {
     "value": "#a93226",
     "variable": "var(--colors-danger-hover)"
   },
+  "colors.link": {
+    "value": "#58a6ff",
+    "variable": "var(--colors-link)"
+  },
+  "colors.linkHover": {
+    "value": "#79b8ff",
+    "variable": "var(--colors-link-hover)"
+  },
   "fonts.sans": {
     "value": "\"Inter\", ui-sans-serif, system-ui, sans-serif",
     "variable": "var(--fonts-sans)"

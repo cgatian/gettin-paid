@@ -35,6 +35,8 @@ export default defineConfig({
         navHover: { value: 'rgba(255,255,255,0.04)' },
         danger: { value: '#c0392b' },
         dangerHover: { value: '#a93226' },
+        link: { value: '#58a6ff' },
+        linkHover: { value: '#79b8ff' },
       },
       fonts: {
         sans: { value: '"Inter", ui-sans-serif, system-ui, sans-serif' },

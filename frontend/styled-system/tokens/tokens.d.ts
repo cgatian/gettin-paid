@@ -1,9 +1,9 @@
 /* eslint-disable */
 export type Token = `colors.${ColorToken}` | `fonts.${FontToken}` | `fontSizes.${FontSizeToken}` | `fontWeights.${FontWeightToken}` | `radii.${RadiusToken}` | `sizes.${SizeToken}` | `spacing.${SpacingToken}` | `durations.${DurationToken}` | `easings.${EasingToken}` | `breakpoints.${BreakpointToken}`
 
-export type ColorPalette = "background" | "surface" | "border" | "borderSubtle" | "borderFaint" | "foreground" | "foregroundMuted" | "accent" | "accentHover" | "accentGreen" | "accentGreenHover" | "navActive" | "navHover" | "danger" | "dangerHover"
+export type ColorPalette = "background" | "surface" | "border" | "borderSubtle" | "borderFaint" | "foreground" | "foregroundMuted" | "accent" | "accentHover" | "accentGreen" | "accentGreenHover" | "navActive" | "navHover" | "danger" | "dangerHover" | "link" | "linkHover"
 
-export type ColorToken = "background" | "surface" | "border" | "borderSubtle" | "borderFaint" | "foreground" | "foregroundMuted" | "accent" | "accentHover" | "accentGreen" | "accentGreenHover" | "navActive" | "navHover" | "danger" | "dangerHover" | "colorPalette"
+export type ColorToken = "background" | "surface" | "border" | "borderSubtle" | "borderFaint" | "foreground" | "foregroundMuted" | "accent" | "accentHover" | "accentGreen" | "accentGreenHover" | "navActive" | "navHover" | "danger" | "dangerHover" | "link" | "linkHover" | "colorPalette"
 
 export type FontToken = "sans" | "mono"
 
