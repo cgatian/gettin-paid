@@ -5,11 +5,12 @@ import {
 } from "@gettin-paid/shared";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { css, cx } from "styled-system/css";
 import { Badge } from "#/components/ui/Badge";
 import { Button, buttonVariants } from "#/components/ui/Button";
 import { Card } from "#/components/ui/Card";
+import { Input } from "#/components/ui/Input";
 import { apiFetch, getApiBase } from "#/lib/api";
 import { formatMoneyAmount, formatPcCents } from "#/lib/money";
 
@@ -73,11 +74,31 @@ const pageTitleClass = css({
 	letterSpacing: "-0.01em",
 });
 
+/** Search + console filters stacked vertically */
+const filtersStackClass = css({
+	display: "flex",
+	flexDir: "column",
+	gap: "4",
+	mb: "6",
+});
+
+const searchBlockClass = css({
+	display: "flex",
+	alignItems: "center",
+	gap: "2",
+	p: "4",
+	borderRadius: "card",
+	bg: "surface",
+	borderWidth: "1px",
+	borderStyle: "solid",
+	borderColor: "border",
+	minW: "0",
+});
+
 const filtersRowClass = css({
 	display: "flex",
 	alignItems: "center",
 	gap: "2",
-	mb: "6",
 	flexWrap: "wrap",
 });
 
@@ -314,6 +335,14 @@ function InventoryList() {
 		},
 	});
 
+	const [titleFilter, setTitleFilter] = useState("");
+	const filteredEditions = useMemo(() => {
+		if (!data?.length) return [];
+		const needle = titleFilter.trim().toLowerCase();
+		if (!needle) return data;
+		return data.filter((e) => e.title.toLowerCase().includes(needle));
+	}, [data, titleFilter]);
+
 	return (
 		<div className={pageClass}>
 			<div className={pageHeaderClass}>
@@ -335,74 +364,90 @@ function InventoryList() {
 				</div>
 			</div>
 
-			<div className={filtersRowClass}>
-				<span className={filterLabelClass}>Console:</span>
-				<FilterChip
-					label="All"
-					to="/inventory"
-					search={{}}
-					active={!consoleFilter}
-				/>
-				{chipConsoleIds.map((id) => (
-					<FilterChip
-						key={id}
-						label={chipLabel(id)}
-						to="/inventory"
-						search={{ console: id }}
-						active={consoleFilter === id}
+			<div className={filtersStackClass}>
+				<div className={searchBlockClass}>
+					<label htmlFor="inventory-title-filter" className={filterLabelClass}>
+						Search:
+					</label>
+					<Input
+						id="inventory-title-filter"
+						type="search"
+						placeholder="Filter by title…"
+						value={titleFilter}
+						onChange={(ev) => setTitleFilter(ev.target.value)}
+						autoComplete="off"
+						className={css({ flex: "1", minW: "0" })}
 					/>
-				))}
-				{moreConsoleOptions.length > 0 && (
-					<details style={{ position: "relative" }}>
-						<summary
-							className={`${filterChipBase} ${filterChipInactive}`}
-							style={{ listStyle: "none" }}
-						>
-							More…
-						</summary>
-						<Card
-							style={{
-								position: "absolute",
-								top: "100%",
-								left: 0,
-								marginTop: "4px",
-								zIndex: 20,
-								minWidth: "220px",
-								maxHeight: "280px",
-								overflowY: "auto",
-							}}
-						>
-							<div
-								className={css({
-									p: "2",
-									display: "flex",
-									flexDir: "column",
-									gap: "1",
-								})}
+				</div>
+				<div className={filtersRowClass}>
+					<span className={filterLabelClass}>Console:</span>
+					<FilterChip
+						label="All"
+						to="/inventory"
+						search={{}}
+						active={!consoleFilter}
+					/>
+					{chipConsoleIds.map((id) => (
+						<FilterChip
+							key={id}
+							label={chipLabel(id)}
+							to="/inventory"
+							search={{ console: id }}
+							active={consoleFilter === id}
+						/>
+					))}
+					{moreConsoleOptions.length > 0 && (
+						<details style={{ position: "relative" }}>
+							<summary
+								className={`${filterChipBase} ${filterChipInactive}`}
+								style={{ listStyle: "none" }}
 							>
-								{moreConsoleOptions.map((row) => (
-									<Link
-										key={row.id}
-										to="/inventory"
-										search={{ console: row.id }}
-										className={css({
-											display: "block",
-											px: "3",
-											py: "2",
-											borderRadius: "btn",
-											fontSize: "sm",
-											color: "foregroundMuted",
-											textDecoration: "none",
-											_hover: { bg: "navHover", color: "foreground" },
-										})}
-									>
-										{row.label}
-									</Link>
-								))}
-							</div>
-						</Card>
-					</details>
-				)}
+								More…
+							</summary>
+							<Card
+								style={{
+									position: "absolute",
+									top: "100%",
+									left: 0,
+									marginTop: "4px",
+									zIndex: 20,
+									minWidth: "220px",
+									maxHeight: "280px",
+									overflowY: "auto",
+								}}
+							>
+								<div
+									className={css({
+										p: "2",
+										display: "flex",
+										flexDir: "column",
+										gap: "1",
+									})}
+								>
+									{moreConsoleOptions.map((row) => (
+										<Link
+											key={row.id}
+											to="/inventory"
+											search={{ console: row.id }}
+											className={css({
+												display: "block",
+												px: "3",
+												py: "2",
+												borderRadius: "btn",
+												fontSize: "sm",
+												color: "foregroundMuted",
+												textDecoration: "none",
+												_hover: { bg: "navHover", color: "foreground" },
+											})}
+										>
+											{row.label}
+										</Link>
+									))}
+								</div>
+							</Card>
+						</details>
+					)}
+				</div>
 			</div>
 
 			{isLoading && <p className={stateTextClass}>Loading editions…</p>}
@@ -440,9 +485,18 @@ function InventoryList() {
 				</div>
 			)}
 
-			{data && data.length > 0 && (
+			{data && data.length > 0 && filteredEditions.length === 0 && (
+				<div className={emptyClass}>
+					<p className={emptyTitleClass}>No titles match your search.</p>
+					<p className={css({ fontSize: "sm" })}>
+						Try a different phrase or clear the search box.
+					</p>
+				</div>
+			)}
+
+			{data && data.length > 0 && filteredEditions.length > 0 && (
 				<>
-					{data.some((e) => (e.activeCopies?.length ?? 0) > 0) && (
+					{filteredEditions.some((e) => (e.activeCopies?.length ?? 0) > 0) && (
 						<div className={listColumnHeaderClass} aria-hidden="true">
 							<span style={{ gridColumn: 1 }} />
 							<span style={{ gridColumn: 2, textAlign: "right" }}>FMV</span>
@@ -453,7 +507,7 @@ function InventoryList() {
 						</div>
 					)}
 					<ul className={listClass}>
-						{data.map((e) => {
+						{filteredEditions.map((e) => {
 							const copies = e.activeCopies ?? [];
 							const n = copies.length;
 							const thumbSrc = editionCoverSrc(
