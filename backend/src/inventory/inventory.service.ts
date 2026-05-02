@@ -1,12 +1,16 @@
 import {
+	type BulkImportResultDto,
+	type BulkRefreshMarketResultDto,
 	findBestPriceChartingConsoleIdFromRows,
 	type DashboardSummaryDto,
+	type PriceChartingPricingPreviewDto,
 	type PriceChartingProductSuggestionDto,
 	type PriceChartingSnapshotDto,
 	snapshotFmvCentsForClassification,
 } from "@gettin-paid/shared";
 import {
 	BadRequestException,
+	HttpException,
 	Injectable,
 	NotFoundException,
 	ServiceUnavailableException,
@@ -91,6 +95,34 @@ export class InventoryService {
 			.filter((row) => row.id.length > 0);
 	}
 
+	/** Full product row for a PriceCharting id (add-game pricing hint; ~1 API call) */
+	async productPricingPreview(
+		productId: string,
+	): Promise<PriceChartingPricingPreviewDto> {
+		const id = productId.trim();
+		if (!id) {
+			throw new BadRequestException("productId is required");
+		}
+		try {
+			const data = await this.pricecharting.fetchProduct({ id });
+			const snap = this.pricecharting.snapshotFromApi(data);
+			return {
+				productName: snap.productName ?? null,
+				consoleName: snap.consoleName ?? null,
+				loosePrice: snap.loosePrice ?? null,
+				cibPrice: snap.cibPrice ?? null,
+				newPrice: snap.newPrice ?? null,
+				gradedPrice: snap.gradedPrice ?? null,
+				salesVolume: snap.salesVolume ?? null,
+			};
+		} catch (e) {
+			if (e instanceof ServiceUnavailableException) throw e;
+			throw new BadRequestException(
+				e instanceof Error ? e.message : "PriceCharting fetch failed",
+			);
+		}
+	}
+
 	async listEditions(priceChartingConsoleId?: string) {
 		const where = priceChartingConsoleId
 			? { priceChartingConsoleId }
@@ -101,9 +133,41 @@ export class InventoryService {
 			include: {
 				_count: { select: { copies: true } },
 				priceChartingConsole: { select: { name: true } },
+				snapshot: true,
+				copies: {
+					where: { soldAt: null },
+					orderBy: { id: "asc" },
+					select: {
+						id: true,
+						copyClassification: true,
+						offerAmount: true,
+						offerCurrency: true,
+					},
+				},
 			},
 		});
-		return editions.map((e) => this.editionToDto(e));
+		return editions.map((e) => {
+			const base = this.editionToDto(e);
+			const snap = e.snapshot;
+			const activeCopies = e.copies.map((c) => ({
+				id: c.id,
+				copyClassification: c.copyClassification,
+				fmvCents: snap
+					? snapshotFmvCentsForClassification(
+							{
+								loosePrice: snap.loosePrice,
+								cibPrice: snap.cibPrice,
+								newPrice: snap.newPrice,
+								gradedPrice: snap.gradedPrice,
+							},
+							c.copyClassification,
+						)
+					: null,
+				offerAmount: decStr(c.offerAmount),
+				offerCurrency: c.offerCurrency,
+			}));
+			return { ...base, activeCopies };
+		});
 	}
 
 	/**
@@ -340,6 +404,51 @@ export class InventoryService {
 	}
 
 	/**
+	 * Sequentially refresh PriceCharting snapshots for every edition (optional console filter).
+	 * Per-edition failures are collected; missing API token aborts the whole run.
+	 */
+	async refreshAllMarket(
+		priceChartingConsoleId?: string,
+	): Promise<BulkRefreshMarketResultDto> {
+		const where = priceChartingConsoleId
+			? { priceChartingConsoleId }
+			: {};
+		const editions = await this.prisma.gameEdition.findMany({
+			where,
+			orderBy: { title: "asc" },
+			select: { id: true, title: true, upc: true },
+		});
+		const failures: BulkRefreshMarketResultDto["failures"] = [];
+		let ok = 0;
+		for (const e of editions) {
+			try {
+				await this.refreshMarketSnapshot(e.id);
+				ok++;
+			} catch (err) {
+				const msg = exceptionMessage(err);
+				if (
+					err instanceof ServiceUnavailableException &&
+					msg.includes("PRICECHARTING_API_TOKEN")
+				) {
+					throw err;
+				}
+				failures.push({
+					editionId: e.id,
+					title: e.title,
+					upc: e.upc,
+					message: msg,
+				});
+			}
+		}
+		return {
+			total: editions.length,
+			ok,
+			failed: failures.length,
+			failures,
+		};
+	}
+
+	/**
 	 * Every new edition must get a PriceCharting product id for pricing lookups.
 	 * Try UPC + console first, then title search + pick (same heuristics as the CSV script).
 	 */
@@ -449,6 +558,158 @@ export class InventoryService {
 		]);
 	}
 
+	async exportAllCopies(): Promise<string> {
+		const copies = await this.prisma.ownedCopy.findMany({
+			orderBy: [{ edition: { title: "asc" } }, { id: "asc" }],
+			include: {
+				edition: {
+					include: { priceChartingConsole: { select: { name: true } } },
+				},
+			},
+		});
+
+		const headers = [
+			"copy_id",
+			"edition_id",
+			"title",
+			"console",
+			"upc",
+			"publisher",
+			"copy_classification",
+			"classification_notes",
+			"purchase_amount",
+			"purchase_currency",
+			"purchase_date",
+			"offer_amount",
+			"offer_currency",
+			"sold_amount",
+			"sold_currency",
+			"sold_at",
+		];
+
+		const rows = copies.map((c) => [
+			c.id,
+			c.editionId,
+			c.edition.title,
+			c.edition.priceChartingConsole?.name ?? "",
+			c.edition.upc,
+			c.edition.publisher ?? "",
+			c.copyClassification,
+			c.classificationNotes ?? "",
+			decStr(c.purchaseAmount) ?? "",
+			c.purchaseCurrency ?? "",
+			c.purchaseDate?.toISOString().slice(0, 10) ?? "",
+			decStr(c.offerAmount) ?? "",
+			c.offerCurrency ?? "",
+			decStr(c.soldAmount) ?? "",
+			c.soldCurrency ?? "",
+			c.soldAt?.toISOString() ?? "",
+		]);
+
+		return [headers, ...rows]
+			.map((row) => row.map(csvEscape).join(","))
+			.join("\n");
+	}
+
+	async importCsv(csv: string): Promise<BulkImportResultDto> {
+		const lines = csv.split(/\r?\n/).filter((l) => l.trim());
+		if (lines.length < 2) {
+			throw new BadRequestException(
+				"CSV must have a header row and at least one data row",
+			);
+		}
+
+		const headers = parseCsvLine(lines[0]);
+		const expected = [
+			"copy_id",
+			"edition_id",
+			"title",
+			"console",
+			"upc",
+			"publisher",
+			"copy_classification",
+			"classification_notes",
+			"purchase_amount",
+			"purchase_currency",
+			"purchase_date",
+			"offer_amount",
+			"offer_currency",
+			"sold_amount",
+			"sold_currency",
+			"sold_at",
+		];
+		if (headers.length < expected.length || expected.some((h, i) => headers[i] !== h)) {
+			throw new BadRequestException(
+				`CSV headers do not match expected format. Expected: ${expected.join(",")}`,
+			);
+		}
+
+		const dataRows = lines.slice(1);
+		const failures: BulkImportResultDto["failures"] = [];
+		let updated = 0;
+
+		const validClassifications = new Set(Object.values(CopyClassification));
+
+		for (let i = 0; i < dataRows.length; i++) {
+			const rowNumber = i + 2;
+			const fields = parseCsvLine(dataRows[i]);
+			const copyId = fields[0]?.trim() ?? "";
+
+			if (!copyId) {
+				failures.push({ rowNumber, copyId: "", message: "Missing copy_id" });
+				continue;
+			}
+
+			const classification = fields[6]?.trim() ?? "";
+			if (!validClassifications.has(classification as CopyClassification)) {
+				failures.push({
+					rowNumber,
+					copyId,
+					message: `Invalid copy_classification: "${classification}"`,
+				});
+				continue;
+			}
+
+			try {
+				const copy = await this.prisma.ownedCopy.findUnique({
+					where: { id: copyId },
+				});
+				if (!copy) {
+					failures.push({ rowNumber, copyId, message: "Copy not found" });
+					continue;
+				}
+
+				const purchaseDate = fields[10]?.trim();
+				const soldAt = fields[15]?.trim();
+
+				await this.prisma.ownedCopy.update({
+					where: { id: copyId },
+					data: {
+						copyClassification: classification as CopyClassification,
+						classificationNotes: fields[7]?.trim() || null,
+						purchaseAmount: d(fields[8]?.trim() || undefined),
+						purchaseCurrency: fields[9]?.trim() || null,
+						purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+						offerAmount: d(fields[11]?.trim() || undefined),
+						offerCurrency: fields[12]?.trim() || null,
+						soldAmount: d(fields[13]?.trim() || undefined),
+						soldCurrency: fields[14]?.trim() || null,
+						soldAt: soldAt ? new Date(soldAt) : null,
+					},
+				});
+				updated++;
+			} catch (err) {
+				failures.push({
+					rowNumber,
+					copyId,
+					message: err instanceof Error ? err.message : String(err),
+				});
+			}
+		}
+
+		return { total: dataRows.length, updated, failed: failures.length, failures };
+	}
+
 	async deleteEdition(id: string) {
 		await this.ensureEdition(id);
 		await this.prisma.gameEdition.delete({ where: { id } });
@@ -535,7 +796,64 @@ export class InventoryService {
 	}
 }
 
+function csvEscape(value: string): string {
+	if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+		return `"${value.replace(/"/g, '""')}"`;
+	}
+	return value;
+}
+
+function parseCsvLine(line: string): string[] {
+	const fields: string[] = [];
+	let current = "";
+	let inQuotes = false;
+	let i = 0;
+	while (i < line.length) {
+		const ch = line[i];
+		if (inQuotes) {
+			if (ch === '"' && line[i + 1] === '"') {
+				current += '"';
+				i += 2;
+			} else if (ch === '"') {
+				inQuotes = false;
+				i++;
+			} else {
+				current += ch;
+				i++;
+			}
+		} else {
+			if (ch === '"') {
+				inQuotes = true;
+				i++;
+			} else if (ch === ",") {
+				fields.push(current);
+				current = "";
+				i++;
+			} else {
+				current += ch;
+				i++;
+			}
+		}
+	}
+	fields.push(current);
+	return fields;
+}
+
 function decStr(v: Prisma.Decimal | null): string | null {
 	if (v === null) return null;
 	return v.toString();
+}
+
+function exceptionMessage(err: unknown): string {
+	if (err instanceof HttpException) {
+		const r = err.getResponse();
+		if (typeof r === "string") return r;
+		if (typeof r === "object" && r !== null && "message" in r) {
+			const m = (r as { message?: unknown }).message;
+			if (Array.isArray(m)) return m.join("; ");
+			if (typeof m === "string") return m;
+		}
+	}
+	if (err instanceof Error) return err.message;
+	return String(err);
 }

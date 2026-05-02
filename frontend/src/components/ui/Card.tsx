@@ -62,3 +62,15 @@ export const cardHeader = css({
 export const cardBody = css({
 	p: "4",
 });
+
+export const formGroupClass = css({
+	display: "flex",
+	flexDir: "column",
+	gap: "3",
+	p: "3",
+	borderRadius: "btn",
+	borderWidth: "1px",
+	borderStyle: "solid",
+	borderColor: "border",
+	bg: "background",
+});

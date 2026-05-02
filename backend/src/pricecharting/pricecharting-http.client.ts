@@ -1,7 +1,7 @@
 import type { PriceChartingProductApi, PriceChartingProductsApi } from "@gettin-paid/shared";
 
-/** Matches PriceCharting subscription guidance (~≥4s between calls); never go faster than this */
-export const PRICECHARTING_MIN_INTERVAL_MS_FLOOR = 4000;
+/** Minimum spacing between outbound PriceCharting calls; raise via env if you hit rate limits. */
+export const PRICECHARTING_MIN_INTERVAL_MS_FLOOR = 2000;
 const PRICECHARTING_MIN_INTERVAL_MS_CEILING = 120_000;
 
 /** Clamp configured interval so typos / low values cannot hammer the API */

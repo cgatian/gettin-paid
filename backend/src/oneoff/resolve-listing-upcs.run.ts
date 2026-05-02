@@ -17,7 +17,10 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { PriceChartingProductApi } from "@gettin-paid/shared";
-import { labelPriceChartingConsole } from "@gettin-paid/shared";
+import {
+	labelPriceChartingConsole,
+	priceChartingProductBrowseUrl,
+} from "@gettin-paid/shared";
 import {
 	clampPriceChartingMinIntervalMs,
 	getPriceChartingErrorMessage,
@@ -94,14 +97,6 @@ function logLine(quiet: boolean, msg: string) {
 	if (!quiet) console.error(msg);
 }
 
-/** Public game page; same id as API. `/game/{id}` redirects to the `/game/.../...` slug URL. */
-function priceChartingProductBrowseUrl(
-	productId: string | undefined | null,
-): string | null {
-	if (!productId?.trim()) return null;
-	return `https://www.pricecharting.com/game/${encodeURIComponent(productId.trim())}`;
-}
-
 /** Full `/api/product` body for debugging (UPC field name, empty values, etc.). */
 function logPriceChartingProductResponse(
 	quiet: boolean,
@@ -135,7 +130,7 @@ async function main() {
 		limit !== undefined ? allRows.slice(0, limit) : allRows;
 
 	const token = process.env.PRICECHARTING_API_TOKEN;
-	const rawIntervalEnv = Number(process.env.PRICECHARTING_MIN_INTERVAL_MS ?? 4000);
+	const rawIntervalEnv = Number(process.env.PRICECHARTING_MIN_INTERVAL_MS ?? 2000);
 	const effectiveThrottleMs = clampPriceChartingMinIntervalMs(rawIntervalEnv);
 
 	const http =

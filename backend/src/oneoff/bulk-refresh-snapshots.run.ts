@@ -103,7 +103,7 @@ async function main() {
 		console.error("PRICECHARTING_API_TOKEN is required");
 		process.exit(1);
 	}
-	const rawInterval = Number(process.env.PRICECHARTING_MIN_INTERVAL_MS ?? 4000);
+	const rawInterval = Number(process.env.PRICECHARTING_MIN_INTERVAL_MS ?? 2000);
 	const effectiveMs = clampPriceChartingMinIntervalMs(rawInterval);
 	const http = new PriceChartingHttpClient({
 		token,

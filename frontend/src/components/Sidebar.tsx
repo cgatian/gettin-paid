@@ -1,5 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Archive, FilePlus, Info, LayoutDashboard, X } from "lucide-react";
+import {
+	Archive,
+	FilePlus,
+	Info,
+	LayoutDashboard,
+	Settings,
+	X,
+} from "lucide-react";
 import { css } from "styled-system/css";
 import { NavItem } from "#/components/ui/NavItem";
 
@@ -113,6 +120,15 @@ const navSectionClass = css({
 	gap: "1",
 });
 
+const navFooterClass = css({
+	display: "flex",
+	flexDir: "column",
+	gap: "1",
+	mt: "auto",
+	pt: "2",
+	flexShrink: "0",
+});
+
 export interface SidebarProps {
 	mobileOpen: boolean;
 	onClose: () => void;
@@ -162,10 +178,18 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 						icon={FilePlus}
 						onNavigate={onClose}
 					/>
-					<NavItem to="/about" label="About" icon={Info} onNavigate={onClose} />
+					<NavItem
+						to="/settings"
+						label="Settings"
+						icon={Settings}
+						onNavigate={onClose}
+					/>
 				</div>
 
-				<div className={dividerClass} />
+				<div className={navFooterClass}>
+					<div className={dividerClass} />
+					<NavItem to="/about" label="About" icon={Info} onNavigate={onClose} />
+				</div>
 			</nav>
 		</aside>
 	);

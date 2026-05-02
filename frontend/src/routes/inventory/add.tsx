@@ -3,7 +3,9 @@ import {
 	type EditionDetailDto,
 	findBestPriceChartingConsoleIdFromApiConsoleName,
 	POPULAR_PRICECHARTING_CONSOLE_IDS,
+	type PriceChartingPricingPreviewDto,
 	type PriceChartingProductSuggestionDto,
+	snapshotFmvCentsForClassification,
 } from "@gettin-paid/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -11,9 +13,10 @@ import { Camera } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import { Button, buttonVariants } from "#/components/ui/Button";
-import { Card, cardBody, cardHeader } from "#/components/ui/Card";
-import { Input, Label, Select } from "#/components/ui/Input";
+import { Card, cardBody, cardHeader, formGroupClass } from "#/components/ui/Card";
+import { Field, Input, Select } from "#/components/ui/Input";
 import { apiFetch } from "#/lib/api";
+import { formatPcCents } from "#/lib/money";
 
 export const Route = createFileRoute("/inventory/add")({ component: AddGame });
 
@@ -23,6 +26,16 @@ type CopyClassificationTag =
 const CLASSIFICATION_OPTIONS = Object.values(
 	CopyClassification,
 ) as CopyClassificationTag[];
+
+/** Anchor cents for offer slider + autofill; falls back when classification has no PC column. */
+function baseOfferCentsPreview(
+	data: PriceChartingPricingPreviewDto,
+	classification: CopyClassificationTag,
+): number | null {
+	const mapped = snapshotFmvCentsForClassification(data, classification);
+	if (mapped != null) return mapped;
+	return data.cibPrice ?? data.loosePrice ?? null;
+}
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
 	const [debounced, setDebounced] = useState(value);
@@ -61,34 +74,6 @@ const formBodyClass = css({
 	gap: "4",
 });
 
-const fieldClass = css({ display: "block", position: "relative" });
-
-const checkboxRowClass = css({
-	display: "flex",
-	alignItems: "flex-start",
-	gap: "2",
-	cursor: "pointer",
-});
-
-const checkboxLabelClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	lineHeight: "1.5",
-	cursor: "pointer",
-});
-
-const codeClass = css({
-	fontFamily: "mono",
-	fontSize: "xs",
-	bg: "background",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "border",
-	borderRadius: "sm",
-	px: "1",
-	color: "accent",
-});
-
 const errorClass = css({
 	bg: "rgba(192,57,43,0.08)",
 	borderWidth: "1px",
@@ -101,10 +86,24 @@ const errorClass = css({
 	color: "danger",
 });
 
+const lowOfferWarningClass = css({
+	display: "block",
+	mt: "2",
+	mb: "0",
+	fontSize: "sm",
+	color: "foreground",
+	bg: "rgba(180, 120, 0, 0.08)",
+	borderWidth: "1px",
+	borderStyle: "solid",
+	borderColor: "rgba(180, 120, 0, 0.22)",
+	borderRadius: "btn",
+	px: "3",
+	py: "2",
+});
+
 const actionRowClass = css({
 	display: "flex",
-	flexDir: { base: "column", sm: "row" },
-	alignItems: { base: "stretch", sm: "center" },
+	alignItems: "center",
 	gap: "3",
 	pt: "2",
 });
@@ -122,7 +121,7 @@ const suggestPanelClass = css({
 	borderStyle: "solid",
 	borderColor: "border",
 	borderRadius: "btn",
-	bg: "card",
+	bg: "surface",
 	boxShadow: "md",
 });
 
@@ -138,6 +137,20 @@ const suggestRowClass = css({
 	color: "foreground",
 	_hover: { bg: "navHover" },
 });
+
+const mutedTextClass = css({ color: "foregroundMuted", fontSize: "xs", mt: "1", mb: "0" });
+
+const priceDlClass = css({
+	display: "grid",
+	gridTemplateColumns: "auto 1fr",
+	columnGap: "4",
+	rowGap: "1",
+	fontSize: "sm",
+	margin: "0",
+});
+
+const priceDtClass = css({ color: "foregroundMuted", fontWeight: "normal", margin: "0" });
+const priceDdClass = css({ margin: "0", color: "foreground" });
 
 function AddGame() {
 	const navigate = useNavigate();
@@ -167,10 +180,24 @@ function AddGame() {
 		setScanError(null);
 		const url = URL.createObjectURL(file);
 		try {
-			const { BrowserMultiFormatReader } = await import("@zxing/browser");
-			const reader = new BrowserMultiFormatReader();
-			const result = await reader.decodeFromImageUrl(url);
-			setUpc(result.getText());
+			const Quagga = (await import("@ericblade/quagga2")).default;
+			const result = await Quagga.decodeSingle({
+				src: url,
+				numOfWorkers: 0,
+				locate: true,
+				decoder: {
+					readers: [
+						"ean_reader",
+						"ean_8_reader",
+						"upc_reader",
+						"upc_e_reader",
+						"code_128_reader",
+					],
+				},
+			});
+			const code = result?.codeResult?.code;
+			if (code) setUpc(code);
+			else setScanError("No barcode found — try a clearer photo.");
 		} catch {
 			setScanError("No barcode found — try a clearer photo.");
 		} finally {
@@ -178,6 +205,7 @@ function AddGame() {
 			setIsScanning(false);
 		}
 	}
+
 	const [title, setTitle] = useState("");
 	const [priceChartingConsoleId, setPriceChartingConsoleId] = useState(
 		POPULAR_PRICECHARTING_CONSOLE_IDS[0] ?? "G8",
@@ -223,17 +251,66 @@ function AddGame() {
 		useState<CopyClassificationTag>(CopyClassification.CIB);
 	const [copyNotes, setCopyNotes] = useState("");
 	const [purchaseAmount, setPurchaseAmount] = useState("");
-	const [purchaseCurrency, setPurchaseCurrency] = useState("USD");
 	const [offerAmount, setOfferAmount] = useState("");
 	const [offerCurrency, setOfferCurrency] = useState("USD");
-	const [syncPriceCharting, setSyncPriceCharting] = useState(false);
+	const [selectedPcProductId, setSelectedPcProductId] = useState<string | null>(
+		null,
+	);
 	const [formError, setFormError] = useState<string | null>(null);
+	const [gameLocated, setGameLocated] = useState(false);
+
+	const pricingPreviewQuery = useQuery({
+		queryKey: ["product-pricing", selectedPcProductId] as const,
+		queryFn: () => {
+			const sp = new URLSearchParams();
+			sp.set("productId", selectedPcProductId ?? "");
+			return apiFetch<PriceChartingPricingPreviewDto>(
+				`/product-pricing?${sp.toString()}`,
+			);
+		},
+		enabled: Boolean(selectedPcProductId),
+		staleTime: 60_000,
+	});
+
+	const baseOfferCents = useMemo(() => {
+		const d = pricingPreviewQuery.data;
+		if (!d) return null;
+		return baseOfferCentsPreview(d, copyClassification);
+	}, [pricingPreviewQuery.data, copyClassification]);
+
+	useEffect(() => {
+		if (!selectedPcProductId) return;
+		if (baseOfferCents == null) return;
+		if (!pricingPreviewQuery.isSuccess) return;
+		setOfferAmount((baseOfferCents / 100).toFixed(2));
+	}, [selectedPcProductId, baseOfferCents, pricingPreviewQuery.isSuccess]);
 
 	const suggestions = suggestionsQuery.data ?? [];
 	const showSuggestions =
 		suggestOpen &&
 		debouncedTitle.trim().length >= 2 &&
 		Boolean(priceChartingConsoleId);
+
+	const offerCurrencyNorm = offerCurrency.trim().toUpperCase() || "USD";
+	const offerAmountNumeric = useMemo(() => {
+		const t = offerAmount.trim();
+		if (!t) return null;
+		const n = Number.parseFloat(t.replace(/,/g, ""));
+		return Number.isFinite(n) ? n : null;
+	}, [offerAmount]);
+	const showLowOfferWarning =
+		offerAmountNumeric != null &&
+		offerAmountNumeric < 5 &&
+		offerCurrencyNorm === "USD";
+
+	const offerSliderCents = useMemo(() => {
+		if (baseOfferCents == null) return null;
+		const parsedCents =
+			offerAmountNumeric != null ? Math.round(offerAmountNumeric * 100) : baseOfferCents;
+		const minC = Math.max(100, Math.floor(baseOfferCents * 0.5 / 100) * 100);
+		const maxC = Math.max(Math.ceil(baseOfferCents * 2 / 100) * 100, minC + 100);
+		return { minC, maxC, value: Math.min(maxC, Math.max(minC, parsedCents)) };
+	}, [baseOfferCents, offerAmountNumeric]);
 
 	function scheduleBlurClose() {
 		blurCloseTimer.current = setTimeout(() => setSuggestOpen(false), 180);
@@ -247,7 +324,13 @@ function AddGame() {
 		setTitle(s.productName);
 		const gid = findBestPriceChartingConsoleIdFromApiConsoleName(s.consoleName);
 		if (gid) setPriceChartingConsoleId(gid);
+		setSelectedPcProductId(s.id);
 		setSuggestOpen(false);
+	}
+
+	function resetSelectionPricingState() {
+		setSelectedPcProductId(null);
+		setOfferAmount("");
 	}
 
 	const create = useMutation({
@@ -261,14 +344,11 @@ function AddGame() {
 					title: title.trim(),
 					priceChartingConsoleId,
 					publisher: publisher.trim() || undefined,
-					syncPriceCharting,
+					syncPriceCharting: true,
 					initialCopyClassification: copyClassification,
 					initialCopyNotes: copyNotes.trim() || undefined,
 					...(purchaseAmount.trim()
-						? {
-								initialPurchaseAmount: purchaseAmount.trim(),
-								initialPurchaseCurrency: purchaseCurrency.trim() || "USD",
-							}
+						? { initialPurchaseAmount: purchaseAmount.trim() }
 						: {}),
 					...(offerAmount.trim()
 						? {
@@ -300,13 +380,7 @@ function AddGame() {
 			<h1 className={pageTitleClass}>Add a game</h1>
 			<Card>
 				<div className={cardHeader}>
-					<span
-						className={css({
-							fontSize: "base",
-							fontWeight: "medium",
-							color: "foreground",
-						})}
-					>
+					<span className={css({ fontSize: "base", fontWeight: "medium", color: "foreground" })}>
 						Edition details
 					</span>
 				</div>
@@ -321,15 +395,142 @@ function AddGame() {
 					>
 						{formError && <p className={errorClass}>{formError}</p>}
 
-						<div className={fieldClass}>
-							<Label htmlFor="upc">UPC (digits only, 8–14)</Label>
-							<div
-								className={css({
-									display: "flex",
-									gap: "2",
-									alignItems: "center",
-								})}
-							>
+						<Field label="Title" htmlFor="title">
+							<Input
+								id="title"
+								type="text"
+								autoComplete="off"
+								value={title}
+								onChange={(e) => {
+									setTitle(e.target.value);
+									resetSelectionPricingState();
+									setSuggestOpen(true);
+								}}
+								onFocus={() => {
+									cancelBlurClose();
+									setSuggestOpen(true);
+								}}
+								onBlur={scheduleBlurClose}
+								onKeyDown={(ev) => {
+									if (ev.key === "Escape") setSuggestOpen(false);
+								}}
+								required
+								maxLength={500}
+								role="combobox"
+								aria-expanded={showSuggestions && suggestions.length > 0}
+								aria-controls="pc-title-suggestions"
+								aria-autocomplete="list"
+							/>
+							{showSuggestions && (
+								<div
+									id="pc-title-suggestions"
+									role="listbox"
+									className={suggestPanelClass}
+									onMouseDown={cancelBlurClose}
+								>
+									{suggestionsQuery.isFetching && (
+										<div className={css({ px: "3", py: "2", fontSize: "sm", color: "foregroundMuted" })}>
+											Searching PriceCharting…
+										</div>
+									)}
+									{!suggestionsQuery.isFetching && suggestionsQuery.isError && (
+										<div className={css({ px: "3", py: "2", fontSize: "sm", color: "danger" })}>
+											Could not load suggestions (check API token / network).
+										</div>
+									)}
+									{!suggestionsQuery.isFetching && !suggestionsQuery.isError && suggestions.length === 0 && (
+										<div className={css({ px: "3", py: "2", fontSize: "sm", color: "foregroundMuted" })}>
+											No matches — keep typing or enter the title manually.
+										</div>
+									)}
+									{suggestions.map((s) => (
+										<button
+											key={s.id}
+											type="button"
+											role="option"
+											className={suggestRowClass}
+											onMouseDown={(e) => e.preventDefault()}
+											onClick={() => applySuggestion(s)}
+										>
+											<span>{s.productName}</span>
+											<span className={css({ color: "foregroundMuted", ml: "2", fontSize: "xs" })}>
+												{s.consoleName}
+											</span>
+										</button>
+									))}
+								</div>
+							)}
+							<p className={mutedTextClass}>
+								Type at least 2 characters for suggestions. Choosing one fills
+								the exact PriceCharting title and matching console when possible.
+							</p>
+						</Field>
+
+						{selectedPcProductId && (
+							<div className={formGroupClass} aria-live="polite">
+								<span className={css({ fontSize: "sm", fontWeight: "medium", color: "foreground" })}>
+									PriceCharting (FMV)
+								</span>
+								{pricingPreviewQuery.isFetching && (
+									<p className={css({ fontSize: "sm", color: "foregroundMuted", mb: "0" })}>
+										Loading prices…
+									</p>
+								)}
+								{!pricingPreviewQuery.isFetching && pricingPreviewQuery.isError && (
+									<p className={css({ fontSize: "sm", color: "danger", mb: "0" })}>
+										Could not load prices (check API token / network).
+									</p>
+								)}
+								{!pricingPreviewQuery.isFetching && !pricingPreviewQuery.isError && pricingPreviewQuery.data && (
+									<>
+										{(pricingPreviewQuery.data.productName || pricingPreviewQuery.data.consoleName) && (
+											<p className={css({ fontSize: "xs", color: "foregroundMuted", m: "0" })}>
+												{pricingPreviewQuery.data.productName}
+												{pricingPreviewQuery.data.consoleName && (
+													<> · {pricingPreviewQuery.data.consoleName}</>
+												)}
+											</p>
+										)}
+										<dl className={priceDlClass}>
+											<dt className={priceDtClass}>Loose</dt>
+											<dd className={priceDdClass}>{formatPcCents(pricingPreviewQuery.data.loosePrice)}</dd>
+											<dt className={priceDtClass}>CIB</dt>
+											<dd className={priceDdClass}>{formatPcCents(pricingPreviewQuery.data.cibPrice)}</dd>
+											<dt className={priceDtClass}>New</dt>
+											<dd className={priceDdClass}>{formatPcCents(pricingPreviewQuery.data.newPrice)}</dd>
+											<dt className={priceDtClass}>Graded</dt>
+											<dd className={priceDdClass}>{formatPcCents(pricingPreviewQuery.data.gradedPrice)}</dd>
+											{pricingPreviewQuery.data.salesVolume != null && (
+												<>
+													<dt className={priceDtClass}>Sales vol.</dt>
+													<dd className={priceDdClass}>{pricingPreviewQuery.data.salesVolume.toLocaleString()}</dd>
+												</>
+											)}
+										</dl>
+										<p className={mutedTextClass}>
+											Offer price below starts at the PriceCharting value for
+											your selected condition; use the slider or type to adjust.
+										</p>
+									</>
+								)}
+							</div>
+						)}
+
+						<Field label="Console (PriceCharting)" htmlFor="console">
+							<Select
+								id="console"
+								value={priceChartingConsoleId}
+								onValueChange={(v) => {
+									setPriceChartingConsoleId(v);
+									resetSelectionPricingState();
+								}}
+								disabled={platformsQuery.isLoading || sortedConsoles.length === 0}
+								items={sortedConsoles.map((c) => ({ value: c.id, label: c.name }))}
+							/>
+						</Field>
+
+						<Field label="UPC (8–14 digits)" htmlFor="upc">
+							<div className={css({ display: "flex", gap: "2", alignItems: "center" })}>
 								<Input
 									id="upc"
 									type="text"
@@ -360,332 +561,19 @@ function AddGame() {
 								/>
 							</div>
 							{scanError && (
-								<p
-									className={css({
-										fontSize: "xs",
-										color: "danger",
-										mt: "1",
-										mb: "0",
-									})}
-								>
-									{scanError}
-								</p>
+								<p className={css({ fontSize: "xs", color: "danger", mt: "1", mb: "0" })}>{scanError}</p>
 							)}
-						</div>
+						</Field>
 
-						<div className={css({ display: "block" })}>
-							<Label htmlFor="console">Console (PriceCharting)</Label>
-							<Select
-								id="console"
-								value={priceChartingConsoleId}
-								onChange={(e) => setPriceChartingConsoleId(e.target.value)}
-								disabled={
-									platformsQuery.isLoading || sortedConsoles.length === 0
-								}
-							>
-								{sortedConsoles.map((c) => (
-									<option key={c.id} value={c.id}>
-										{c.name} ({c.id})
-									</option>
-								))}
-							</Select>
-							<p
-								className={css({
-									fontSize: "xs",
-									color: "foregroundMuted",
-									mt: "1",
-									mb: "0",
-								})}
-							>
-								Narrows title suggestions to this platform. Same IDs as{" "}
-								<a
-									href="https://www.pricecharting.com/api-documentation#console-ids"
-									target="_blank"
-									rel="noreferrer"
-									className={css({ color: "accent" })}
-								>
-									PriceCharting&apos;s console table
-								</a>
-								.
-							</p>
-						</div>
-
-						<div className={fieldClass}>
-							<Label htmlFor="title">Title</Label>
-							<Input
-								id="title"
-								type="text"
-								autoComplete="off"
-								value={title}
-								onChange={(e) => {
-									setTitle(e.target.value);
-									setSuggestOpen(true);
-								}}
-								onFocus={() => {
-									cancelBlurClose();
-									setSuggestOpen(true);
-								}}
-								onBlur={scheduleBlurClose}
-								onKeyDown={(ev) => {
-									if (ev.key === "Escape") setSuggestOpen(false);
-								}}
-								required
-								maxLength={500}
-								role="combobox"
-								aria-expanded={showSuggestions && suggestions.length > 0}
-								aria-controls="pc-title-suggestions"
-								aria-autocomplete="list"
-							/>
-							{showSuggestions && (
-								<div
-									id="pc-title-suggestions"
-									role="listbox"
-									className={suggestPanelClass}
-									onMouseDown={cancelBlurClose}
-								>
-									{suggestionsQuery.isFetching && (
-										<div
-											className={css({
-												px: "3",
-												py: "2",
-												fontSize: "sm",
-												color: "foregroundMuted",
-											})}
-										>
-											Searching PriceCharting…
-										</div>
-									)}
-									{!suggestionsQuery.isFetching && suggestionsQuery.isError && (
-										<div
-											className={css({
-												px: "3",
-												py: "2",
-												fontSize: "sm",
-												color: "danger",
-											})}
-										>
-											Could not load suggestions (check API token / network).
-										</div>
-									)}
-									{!suggestionsQuery.isFetching &&
-										!suggestionsQuery.isError &&
-										suggestions.length === 0 && (
-											<div
-												className={css({
-													px: "3",
-													py: "2",
-													fontSize: "sm",
-													color: "foregroundMuted",
-												})}
-											>
-												No matches — keep typing or enter the title manually.
-											</div>
-										)}
-									{suggestions.map((s) => (
-										<button
-											key={s.id}
-											type="button"
-											role="option"
-											className={suggestRowClass}
-											onMouseDown={(e) => e.preventDefault()}
-											onClick={() => applySuggestion(s)}
-										>
-											<span>{s.productName}</span>
-											<span
-												className={css({
-													color: "foregroundMuted",
-													ml: "2",
-													fontSize: "xs",
-												})}
-											>
-												{s.consoleName}
-											</span>
-										</button>
-									))}
-								</div>
-							)}
-							<p
-								className={css({
-									fontSize: "xs",
-									color: "foregroundMuted",
-									mt: "1",
-									mb: "0",
-								})}
-							>
-								Type at least 2 characters for suggestions. Choosing one fills
-								the exact PriceCharting title and matching console when
-								possible.
-							</p>
-						</div>
-
-						<div
-							className={css({
-								display: "grid",
-								gap: "3",
-								p: "3",
-								borderRadius: "btn",
-								borderWidth: "1px",
-								borderStyle: "solid",
-								borderColor: "border",
-								bg: "background",
-							})}
+						<Field
+							label={
+								<>
+									Publisher{" "}
+									<span className={css({ color: "foregroundMuted", fontWeight: "normal" })}>(optional)</span>
+								</>
+							}
+							htmlFor="publisher"
 						>
-							<span
-								className={css({
-									fontSize: "sm",
-									fontWeight: "medium",
-									color: "foreground",
-								})}
-							>
-								Your first copy
-							</span>
-							<div
-								className={css({
-									display: "flex",
-									flexDir: { base: "column", sm: "row" },
-									flexWrap: "wrap",
-									gap: "3",
-									alignItems: { base: "stretch", sm: "flex-end" },
-								})}
-							>
-								<div
-									className={css({
-										flex: "1",
-										minWidth: { base: "0", sm: "160px" },
-									})}
-								>
-									<Label htmlFor="copy-class">Condition</Label>
-									<Select
-										id="copy-class"
-										value={copyClassification}
-										onChange={(e) =>
-											setCopyClassification(
-												e.target.value as CopyClassificationTag,
-											)
-										}
-									>
-										{CLASSIFICATION_OPTIONS.map((x) => (
-											<option key={x} value={x}>
-												{x.replace(/_/g, " ")}
-											</option>
-										))}
-									</Select>
-								</div>
-								<div
-									className={css({
-										flex: "2",
-										minWidth: { base: "0", sm: "200px" },
-									})}
-								>
-									<Label htmlFor="copy-notes">Copy notes (optional)</Label>
-									<Input
-										id="copy-notes"
-										value={copyNotes}
-										onChange={(e) => setCopyNotes(e.target.value)}
-										placeholder="e.g. sealed, sticker on box"
-										maxLength={2000}
-									/>
-								</div>
-							</div>
-
-							<div
-								className={css({
-									display: "grid",
-									gridTemplateColumns: { base: "1fr", sm: "1fr 1fr" },
-									gap: "3",
-								})}
-							>
-								<div>
-									<Label htmlFor="purchase-amt">
-										Purchase price (optional)
-									</Label>
-									<div
-										className={css({
-											display: "flex",
-											gap: "2",
-											alignItems: "stretch",
-										})}
-									>
-										<Input
-											id="purchase-amt"
-											type="text"
-											inputMode="decimal"
-											autoComplete="off"
-											value={purchaseAmount}
-											onChange={(e) => setPurchaseAmount(e.target.value)}
-											placeholder="0.00"
-											className={css({ flex: "1", minWidth: "0" })}
-										/>
-										<Input
-											id="purchase-ccy"
-											type="text"
-											autoComplete="off"
-											value={purchaseCurrency}
-											onChange={(e) =>
-												setPurchaseCurrency(
-													e.target.value.toUpperCase().slice(0, 3),
-												)
-											}
-											placeholder="USD"
-											maxLength={3}
-											aria-label="Purchase currency"
-											className={css({ width: "76px", flexShrink: 0 })}
-										/>
-									</div>
-								</div>
-								<div>
-									<Label htmlFor="offer-amt">
-										Offer / asking price (optional)
-									</Label>
-									<div
-										className={css({
-											display: "flex",
-											gap: "2",
-											alignItems: "stretch",
-										})}
-									>
-										<Input
-											id="offer-amt"
-											type="text"
-											inputMode="decimal"
-											autoComplete="off"
-											value={offerAmount}
-											onChange={(e) => setOfferAmount(e.target.value)}
-											placeholder="0.00"
-											className={css({ flex: "1", minWidth: "0" })}
-										/>
-										<Input
-											id="offer-ccy"
-											type="text"
-											autoComplete="off"
-											value={offerCurrency}
-											onChange={(e) =>
-												setOfferCurrency(
-													e.target.value.toUpperCase().slice(0, 3),
-												)
-											}
-											placeholder="USD"
-											maxLength={3}
-											aria-label="Offer currency"
-											className={css({ width: "76px", flexShrink: 0 })}
-										/>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<div className={css({ display: "block" })}>
-							<Label htmlFor="publisher">
-								Publisher{" "}
-								<span
-									className={css({
-										color: "foregroundMuted",
-										fontWeight: "normal",
-									})}
-								>
-									(optional)
-								</span>
-							</Label>
 							<Input
 								id="publisher"
 								type="text"
@@ -693,31 +581,95 @@ function AddGame() {
 								onChange={(e) => setPublisher(e.target.value)}
 								maxLength={200}
 							/>
+						</Field>
+
+						<div className={formGroupClass}>
+							<Field label="Condition" htmlFor="copy-class">
+								<Select
+									id="copy-class"
+									value={copyClassification}
+									onValueChange={(v) => setCopyClassification(v as CopyClassificationTag)}
+									items={CLASSIFICATION_OPTIONS.map((x) => ({ value: x, label: x.replace(/_/g, " ") }))}
+								/>
+							</Field>
+
+							<Field label="Notes (optional)" htmlFor="copy-notes">
+								<Input
+									id="copy-notes"
+									value={copyNotes}
+									onChange={(e) => setCopyNotes(e.target.value)}
+									placeholder="e.g. sealed, sticker on box"
+									maxLength={2000}
+								/>
+							</Field>
+
+							<Field label="Paid (optional)" htmlFor="purchase-amt">
+								<Input
+									id="purchase-amt"
+									type="text"
+									inputMode="decimal"
+									autoComplete="off"
+									value={purchaseAmount}
+									onChange={(e) => setPurchaseAmount(e.target.value)}
+									placeholder="0.00"
+								/>
+							</Field>
+
+							<Field label="Asking (optional)" htmlFor="offer-amt">
+								<div className={css({ display: "flex", gap: "2", alignItems: "stretch" })}>
+									<Input
+										id="offer-amt"
+										type="text"
+										inputMode="decimal"
+										autoComplete="off"
+										value={offerAmount}
+										onChange={(e) => setOfferAmount(e.target.value)}
+										placeholder="0.00"
+										className={css({ flex: "1", minWidth: "0" })}
+									/>
+									<Input
+										id="offer-ccy"
+										type="text"
+										autoComplete="off"
+										value={offerCurrency}
+										onChange={(e) =>
+											setOfferCurrency(e.target.value.toUpperCase().slice(0, 3))
+										}
+										placeholder="USD"
+										maxLength={3}
+										aria-label="Offer currency"
+										className={css({ width: "60px", flexShrink: 0 })}
+									/>
+								</div>
+								{offerSliderCents && (
+									<input
+										type="range"
+										className={css({ w: "100%", mt: "2", accentColor: "accent", cursor: "pointer" })}
+										min={offerSliderCents.minC}
+										max={offerSliderCents.maxC}
+										step={100}
+										value={offerSliderCents.value}
+										aria-label="Adjust asking price"
+										onChange={(e) =>
+											setOfferAmount((Number(e.target.value) / 100).toFixed(2))
+										}
+									/>
+								)}
+								{showLowOfferWarning && (
+									<output
+										className={lowOfferWarningClass}
+										htmlFor="offer-amt offer-ccy"
+										aria-live="polite"
+									>
+										Prices under $5 may sell faster but earn less.
+									</output>
+								)}
+							</Field>
 						</div>
 
-						<label className={checkboxRowClass}>
-							<input
-								type="checkbox"
-								checked={syncPriceCharting}
-								onChange={(e) => setSyncPriceCharting(e.target.checked)}
-								style={{ marginTop: "2px" }}
-							/>
-							<span className={checkboxLabelClass}>
-								Also fetch market snapshot (prices) after save{" "}
-								<span className={css({ color: "foregroundMuted" })}>
-									(product is linked to PriceCharting on save; this only loads
-									FMV snapshot)
-								</span>
-							</span>
-						</label>
-
 						<div className={actionRowClass}>
-							<Button
-								type="submit"
-								variant="primary"
-								disabled={create.isPending}
-							>
-								{create.isPending ? "Saving…" : "Save edition"}
+							<Button type="submit" variant="primary" disabled={create.isPending}>
+								{create.isPending ? "Adding..." : "Add"}
 							</Button>
 							<Link
 								to="/inventory"

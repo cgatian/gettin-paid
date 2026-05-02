@@ -9,9 +9,12 @@ import {
 	Patch,
 	Post,
 	Query,
+	Res,
 } from "@nestjs/common";
+import type { Response } from "express";
 import type { CreateCopyDto } from "./dto/create-copy.dto";
 import type { CreateEditionDto } from "./dto/create-edition.dto";
+import type { ImportCsvDto } from "./dto/import-csv.dto";
 import type { PatchCopyDto } from "./dto/patch-copy.dto";
 import type { PatchEditionDto } from "./dto/patch-edition.dto";
 import { InventoryService } from "./inventory.service";
@@ -33,6 +36,11 @@ export class InventoryController {
 		return this.inventory.productSuggestions(q ?? "", priceChartingConsoleId);
 	}
 
+	@Get("product-pricing")
+	productPricing(@Query("productId") productId?: string) {
+		return this.inventory.productPricingPreview(productId ?? "");
+	}
+
 	@Get("dashboard")
 	dashboard() {
 		return this.inventory.dashboardSummary();
@@ -48,6 +56,18 @@ export class InventoryController {
 			platformLegacy,
 		);
 		return this.inventory.listEditions(filter);
+	}
+
+	@Post("editions/refresh-all-market")
+	async refreshAllMarket(
+		@Query("console") console?: string,
+		@Query("platform") platformLegacy?: string,
+	) {
+		const filter = await this.inventory.resolveConsoleFilterQuery(
+			console,
+			platformLegacy,
+		);
+		return this.inventory.refreshAllMarket(filter);
 	}
 
 	@Get("editions/:id")
@@ -87,5 +107,21 @@ export class InventoryController {
 	@Post("editions/:id/refresh-market")
 	refresh(@Param("id") id: string) {
 		return this.inventory.refreshMarket(id);
+	}
+
+	@Get("export")
+	async exportCsv(@Res() res: Response) {
+		const csv = await this.inventory.exportAllCopies();
+		res.setHeader("Content-Type", "text/csv; charset=utf-8");
+		res.setHeader(
+			"Content-Disposition",
+			'attachment; filename="inventory.csv"',
+		);
+		res.send(csv);
+	}
+
+	@Post("import")
+	importCsv(@Body() body: ImportCsvDto) {
+		return this.inventory.importCsv(body.csv);
 	}
 }

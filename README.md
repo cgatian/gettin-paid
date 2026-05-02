@@ -92,7 +92,7 @@ pnpm dev
 | **`PORT`** | No | API listen port; default `4000`. |
 | **`FRONTEND_URL`** | No | Browser origin for CORS (e.g. `http://localhost:3000`). Use comma-separated values if you need more than one. |
 | **`PRICECHARTING_API_TOKEN`** | No | Enables PriceCharting API calls (product lookup, market refresh). If unset, those features fail or skip where documented. |
-| **`PRICECHARTING_MIN_INTERVAL_MS`** | No | Minimum delay between outbound PriceCharting requests (ms). Backend enforces at least **4000**; default `4000`. |
+| **`PRICECHARTING_MIN_INTERVAL_MS`** | No | Minimum delay between outbound PriceCharting requests (ms). Backend enforces at least **2000**; default `2000`. |
 
 ### Frontend (`frontend/.env` or `frontend/.env.local`)
 

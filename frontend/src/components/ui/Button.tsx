@@ -1,3 +1,4 @@
+import { Button as BaseButton } from '@base-ui/react'
 import { cva, cx } from 'styled-system/css'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
@@ -79,9 +80,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export function Button({ variant, size, className, children, ...props }: ButtonProps) {
   return (
-    <button type="button" className={cx(buttonVariants({ variant, size }), className)} {...props}>
+    <BaseButton
+      type="button"
+      className={cx(buttonVariants({ variant, size }), className)}
+      {...props}
+    >
       {children}
-    </button>
+    </BaseButton>
   )
 }
 

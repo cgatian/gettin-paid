@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -16,6 +17,11 @@ import { Route as InventoryIndexRouteImport } from './routes/inventory/index'
 import { Route as InventoryAddRouteImport } from './routes/inventory/add'
 import { Route as InventoryEditionIdRouteImport } from './routes/inventory/$editionId'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/settings': typeof SettingsRoute
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
   '/inventory/': typeof InventoryIndexRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/settings': typeof SettingsRoute
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
   '/inventory': typeof InventoryIndexRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/settings': typeof SettingsRoute
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
   '/inventory/': typeof InventoryIndexRoute
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/dashboard'
+    | '/settings'
     | '/inventory/$editionId'
     | '/inventory/add'
     | '/inventory/'
@@ -86,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/dashboard'
+    | '/settings'
     | '/inventory/$editionId'
     | '/inventory/add'
     | '/inventory'
@@ -94,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/dashboard'
+    | '/settings'
     | '/inventory/$editionId'
     | '/inventory/add'
     | '/inventory/'
@@ -103,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   DashboardRoute: typeof DashboardRoute
+  SettingsRoute: typeof SettingsRoute
   InventoryEditionIdRoute: typeof InventoryEditionIdRoute
   InventoryAddRoute: typeof InventoryAddRoute
   InventoryIndexRoute: typeof InventoryIndexRoute
@@ -110,6 +123,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -159,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   DashboardRoute: DashboardRoute,
+  SettingsRoute: SettingsRoute,
   InventoryEditionIdRoute: InventoryEditionIdRoute,
   InventoryAddRoute: InventoryAddRoute,
   InventoryIndexRoute: InventoryIndexRoute,

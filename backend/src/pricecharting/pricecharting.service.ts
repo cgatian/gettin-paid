@@ -19,7 +19,7 @@ export class PriceChartingService {
 	) {}
 
 	private get minIntervalMs(): number {
-		return Number(this.config.get("PRICECHARTING_MIN_INTERVAL_MS") ?? 4000);
+		return Number(this.config.get("PRICECHARTING_MIN_INTERVAL_MS") ?? 2000);
 	}
 
 	private get token(): string | undefined {

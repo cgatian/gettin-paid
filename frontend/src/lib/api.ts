@@ -30,3 +30,21 @@ export async function apiFetch<T>(
 	if (res.status === 204) return undefined as T;
 	return res.json() as Promise<T>;
 }
+
+export async function apiFetchBlob(path: string): Promise<Blob> {
+	const base = getApiBase().replace(/\/$/, "");
+	const p = path.startsWith("/") ? path : `/${path}`;
+	const url = `${base}/api${p}`;
+	const res = await fetch(url);
+	if (!res.ok) {
+		let detail = res.statusText;
+		try {
+			const body = await res.text();
+			if (body) detail = body;
+		} catch {
+			/* ignore */
+		}
+		throw new Error(detail);
+	}
+	return res.blob();
+}

@@ -3,10 +3,12 @@ import {
 	type EditionDetailDto,
 	labelPriceChartingConsole,
 	type OwnedCopyDto,
+	priceChartingProductBrowseUrl,
 } from "@gettin-paid/shared";
+import { Dialog } from "@base-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { css, cx } from "styled-system/css";
 import { Badge } from "#/components/ui/Badge";
 import { Button } from "#/components/ui/Button";
@@ -221,22 +223,23 @@ const overlayClass = css({
 	inset: 0,
 	bg: "rgba(0,0,0,0.45)",
 	zIndex: 100,
-	display: "flex",
-	alignItems: "center",
-	justifyContent: "center",
-	p: "4",
 });
 
 const modalPanelClass = css({
+	position: "fixed",
+	top: "50%",
+	left: "50%",
+	transform: "translate(-50%, -50%)",
 	bg: "surface",
 	borderRadius: "card",
 	borderWidth: "1px",
 	borderStyle: "solid",
 	borderColor: "border",
 	maxWidth: "420px",
-	width: "100%",
+	width: "calc(100% - 2rem)",
 	p: "5",
 	boxShadow: "md",
+	zIndex: 101,
 });
 
 const modalTitleClass = css({
@@ -425,28 +428,6 @@ function EditionDetail() {
 		},
 	});
 
-	useEffect(() => {
-		if (!sellCopyId) return;
-		const onKey = (ev: KeyboardEvent) => {
-			if (ev.key === "Escape") {
-				setSellCopyId(null);
-				setSellError(null);
-			}
-		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, [sellCopyId]);
-
-	useEffect(() => {
-		if (!editCopyId) return;
-		const onKey = (ev: KeyboardEvent) => {
-			if (ev.key === "Escape" && !updateCopyMeta.isPending) {
-				closeEditCopyModal();
-			}
-		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, [editCopyId, updateCopyMeta.isPending]);
 
 	const deleteGame = useMutation({
 		mutationFn: () =>
@@ -463,17 +444,6 @@ function EditionDetail() {
 		},
 	});
 
-	useEffect(() => {
-		if (!deleteModalOpen) return;
-		const onKey = (ev: KeyboardEvent) => {
-			if (ev.key === "Escape" && !deleteGame.isPending) {
-				setDeleteModalOpen(false);
-				setDeleteError(null);
-			}
-		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, [deleteModalOpen, deleteGame.isPending]);
 
 	if (q.isLoading) {
 		return <p className={stateTextClass}>Loading…</p>;
@@ -494,6 +464,9 @@ function EditionDetail() {
 
 	const e = q.data;
 	const snap = e.snapshot;
+	const priceChartingBrowseUrl = priceChartingProductBrowseUrl(
+		e.priceChartingProductId,
+	);
 	const sellingCopy =
 		sellCopyId !== null ? e.copies.find((c) => c.id === sellCopyId) : undefined;
 	const editingCopy =
@@ -534,6 +507,28 @@ function EditionDetail() {
 					<span className={metaTextClass}>UPC {e.upc}</span>
 					{e.publisher && (
 						<span className={metaTextClass}>· {e.publisher}</span>
+					)}
+					{priceChartingBrowseUrl && (
+						<>
+							<span className={metaTextClass} aria-hidden="true">
+								·
+							</span>
+							<a
+								href={priceChartingBrowseUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className={cx(
+									metaTextClass,
+									css({
+										textDecoration: "underline",
+										textUnderlineOffset: "2px",
+										_hover: { color: "foreground" },
+									}),
+								)}
+							>
+								View on PriceCharting
+							</a>
+						</>
 					)}
 				</div>
 			</div>
@@ -719,16 +714,14 @@ function EditionDetail() {
 									<Select
 										id="classification"
 										value={classification}
-										onChange={(ev) =>
-											setClassification(ev.target.value as CopyClassification)
+										onValueChange={(v) =>
+											setClassification(v as CopyClassification)
 										}
-									>
-										{CLASSIFICATION_OPTIONS.map((x) => (
-											<option key={x} value={x}>
-												{x.replace(/_/g, " ")}
-											</option>
-										))}
-									</Select>
+										items={CLASSIFICATION_OPTIONS.map((x) => ({
+											value: x,
+											label: x.replace(/_/g, " "),
+										}))}
+									/>
 								</div>
 								<div className={css({ flex: "2", minWidth: "120px" })}>
 									<Label htmlFor="notes">Notes (optional)</Label>
@@ -756,27 +749,19 @@ function EditionDetail() {
 				</Card>
 			</div>
 
-			{editCopyId !== null && (
-				<div
-					className={overlayClass}
-					role="presentation"
-					onClick={(ev) => {
-						if (ev.target === ev.currentTarget && !updateCopyMeta.isPending) {
-							closeEditCopyModal();
-						}
-					}}
-				>
-					<div
-						className={cx(
-							modalPanelClass,
-							css({ maxWidth: "460px" }),
-						)}
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="edit-copy-dialog-title"
-						onClick={(ev) => ev.stopPropagation()}
+			<Dialog.Root
+				open={editCopyId !== null}
+				onOpenChange={(open) => {
+					if (!open && updateCopyMeta.isPending) return;
+					if (!open) closeEditCopyModal();
+				}}
+			>
+				<Dialog.Portal>
+					<Dialog.Backdrop className={overlayClass} />
+					<Dialog.Popup
+						className={cx(modalPanelClass, css({ maxWidth: "460px" }))}
 					>
-						<h2 id="edit-copy-dialog-title" className={modalTitleClass}>
+						<Dialog.Title className={modalTitleClass}>
 							Edit copy
 							{editingCopy && (
 								<span
@@ -791,7 +776,7 @@ function EditionDetail() {
 									{e.title}
 								</span>
 							)}
-						</h2>
+						</Dialog.Title>
 						<form
 							onSubmit={(ev) => {
 								ev.preventDefault();
@@ -814,18 +799,14 @@ function EditionDetail() {
 									<Select
 										id="edit-classification"
 										value={editClassification}
-										onChange={(ev) =>
-											setEditClassification(
-												ev.target.value as CopyClassification,
-											)
+										onValueChange={(v) =>
+											setEditClassification(v as CopyClassification)
 										}
-									>
-										{CLASSIFICATION_OPTIONS.map((x) => (
-											<option key={x} value={x}>
-												{x.replace(/_/g, " ")}
-											</option>
-										))}
-									</Select>
+										items={CLASSIFICATION_OPTIONS.map((x) => ({
+											value: x,
+											label: x.replace(/_/g, " "),
+										}))}
+									/>
 								</div>
 								<div>
 									<Label htmlFor="edit-notes">Notes (optional)</Label>
@@ -908,28 +889,22 @@ function EditionDetail() {
 								</Button>
 							</div>
 						</form>
-					</div>
-				</div>
-			)}
+					</Dialog.Popup>
+				</Dialog.Portal>
+			</Dialog.Root>
 
-			{sellCopyId !== null && (
-				<div
-					className={overlayClass}
-					role="presentation"
-					onClick={(ev) => {
-						if (ev.target === ev.currentTarget) closeSellModal();
-					}}
-				>
-					<div
-						className={modalPanelClass}
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="sell-dialog-title"
-						onClick={(ev) => ev.stopPropagation()}
-					>
-						<h2 id="sell-dialog-title" className={modalTitleClass}>
+			<Dialog.Root
+				open={sellCopyId !== null}
+				onOpenChange={(open) => {
+					if (!open) closeSellModal();
+				}}
+			>
+				<Dialog.Portal>
+					<Dialog.Backdrop className={overlayClass} />
+					<Dialog.Popup className={modalPanelClass}>
+						<Dialog.Title className={modalTitleClass}>
 							{sellingCopy?.soldAt != null ? "Edit sale" : "Mark copy as sold"}
-						</h2>
+						</Dialog.Title>
 						<form
 							onSubmit={(ev) => {
 								ev.preventDefault();
@@ -1003,31 +978,26 @@ function EditionDetail() {
 								</Button>
 							</div>
 						</form>
-					</div>
-				</div>
-			)}
+					</Dialog.Popup>
+				</Dialog.Portal>
+			</Dialog.Root>
 
-			{deleteModalOpen && (
-				<div
-					className={overlayClass}
-					role="presentation"
-					onClick={(ev) => {
-						if (ev.target === ev.currentTarget && !deleteGame.isPending) {
-							setDeleteModalOpen(false);
-							setDeleteError(null);
-						}
-					}}
-				>
-					<div
-						className={modalPanelClass}
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="delete-dialog-title"
-						onClick={(ev) => ev.stopPropagation()}
-					>
-						<h2 id="delete-dialog-title" className={modalTitleClass}>
+			<Dialog.Root
+				open={deleteModalOpen}
+				onOpenChange={(open) => {
+					if (!open && deleteGame.isPending) return;
+					if (!open) {
+						setDeleteModalOpen(false);
+						setDeleteError(null);
+					}
+				}}
+			>
+				<Dialog.Portal>
+					<Dialog.Backdrop className={overlayClass} />
+					<Dialog.Popup className={modalPanelClass}>
+						<Dialog.Title className={modalTitleClass}>
 							Delete this game?
-						</h2>
+						</Dialog.Title>
 						<p
 							className={css({
 								fontSize: "sm",
@@ -1068,9 +1038,9 @@ function EditionDetail() {
 								{deleteGame.isPending ? "Deleting…" : "Delete game"}
 							</Button>
 						</div>
-					</div>
-				</div>
-			)}
+					</Dialog.Popup>
+				</Dialog.Portal>
+			</Dialog.Root>
 		</div>
 	);
 }

@@ -1,5 +1,6 @@
 export * from "./pricecharting-console-ids.js";
 export * from "./pricecharting-console-resolve.js";
+export * from "./pricecharting-product-url.js";
 
 export const CopyClassification = {
 	SEALED: "SEALED",
@@ -79,6 +80,16 @@ export type PriceChartingProductApi = {
 	"error-message"?: string;
 };
 
+/** One unsold copy on the inventory list, with condition-based FMV and optional proposed price */
+export type EditionListActiveCopyDto = {
+	id: string;
+	copyClassification: CopyClassification;
+	/** Fair market value in USD pennies from latest snapshot, or null if unpriced */
+	fmvCents: number | null;
+	offerAmount: string | null;
+	offerCurrency: string | null;
+};
+
 /** Platform = PriceCharting console id (e.g. G8, G17). See PRICECHARTING_CONSOLES */
 export type GameEditionDto = {
 	id: string;
@@ -90,6 +101,8 @@ export type GameEditionDto = {
 	/** Resolved from {@link PRICECHARTING_CONSOLE_ID_TO_NAME}; null if id missing or unknown */
 	priceChartingConsoleName: string | null;
 	copyCount?: number;
+	/** Set on GET /editions: unsold copies with FMV and optional proposed (offer) price */
+	activeCopies?: EditionListActiveCopyDto[];
 };
 
 export type OwnedCopyDto = {
@@ -105,6 +118,17 @@ export type OwnedCopyDto = {
 	soldAmount: string | null;
 	soldCurrency: string | null;
 	soldAt: string | null;
+};
+
+/** GET /api/product-pricing — live PriceCharting prices for a product id (add flow) */
+export type PriceChartingPricingPreviewDto = {
+	productName: string | null;
+	consoleName: string | null;
+	loosePrice: number | null;
+	cibPrice: number | null;
+	newPrice: number | null;
+	gradedPrice: number | null;
+	salesVolume: number | null;
 };
 
 export type PriceChartingSnapshotDto = {
@@ -150,6 +174,19 @@ export type DashboardSystemCountDto = {
 	editionCount: number;
 };
 
+/** POST /api/editions/refresh-all-market */
+export type BulkRefreshMarketResultDto = {
+	total: number;
+	ok: number;
+	failed: number;
+	failures: {
+		editionId: string;
+		title: string;
+		upc: string;
+		message: string;
+	}[];
+};
+
 /** GET /api/dashboard */
 export type DashboardSummaryDto = {
 	systems: DashboardSystemCountDto[];
@@ -161,6 +198,17 @@ export type DashboardSummaryDto = {
 	unpricedCopyCount: number;
 	activeCopyCount: number;
 	editionCount: number;
+};
+
+export type BulkImportResultDto = {
+	total: number;
+	updated: number;
+	failed: number;
+	failures: {
+		rowNumber: number;
+		copyId: string;
+		message: string;
+	}[];
 };
 
 /** FMV in USD pennies from a snapshot row for a copy classification, or null if not applicable */
