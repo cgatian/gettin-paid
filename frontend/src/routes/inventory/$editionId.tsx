@@ -1,3 +1,4 @@
+import { Dialog } from "@base-ui/react";
 import {
 	CopyClassification,
 	type EditionDetailDto,
@@ -8,21 +9,19 @@ import {
 	priceChartingProductBrowseUrl,
 	snapshotFmvCentsForClassification,
 } from "@gettin-paid/shared";
-import { Dialog } from "@base-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { css, cx } from "styled-system/css";
 import { Badge } from "#/components/ui/Badge";
 import { Button } from "#/components/ui/Button";
-import { Card, cardBody, cardHeader, formGroupClass } from "#/components/ui/Card";
 import {
-	Field,
-	Input,
-	Label,
-	Select,
-	inputClass,
-} from "#/components/ui/Input";
+	Card,
+	cardBody,
+	cardHeader,
+	formGroupClass,
+} from "#/components/ui/Card";
+import { Field, Input, inputClass, Label, Select } from "#/components/ui/Input";
 import { apiFetch, apiFetchPost, getApiBase } from "#/lib/api";
 import { formatMoneyAmount, formatPcCents } from "#/lib/money";
 
@@ -559,8 +558,7 @@ function EditionDetail() {
 					...(addCopyOfferAmount.trim()
 						? {
 								offerAmount: addCopyOfferAmount.trim(),
-								offerCurrency:
-									addCopyOfferCurrency.trim().slice(0, 3) || "USD",
+								offerCurrency: addCopyOfferCurrency.trim().slice(0, 3) || "USD",
 							}
 						: {}),
 				}),
@@ -694,7 +692,6 @@ function EditionDetail() {
 		},
 	});
 
-
 	const deleteGame = useMutation({
 		mutationFn: () =>
 			apiFetch<void>(`/editions/${editionId}`, { method: "DELETE" }),
@@ -710,7 +707,6 @@ function EditionDetail() {
 			setDeleteError(e instanceof Error ? e.message : "Could not delete game");
 		},
 	});
-
 
 	if (q.isLoading) {
 		return <p className={stateTextClass}>Loading…</p>;
@@ -990,16 +986,8 @@ function EditionDetail() {
 								<div className={copiesTableMinClass}>
 									<div className={copiesHeaderRowClass}>
 										<span>Class</span>
-										<span
-											className={css({ textAlign: "right" })}
-										>
-											Paid
-										</span>
-										<span
-											className={css({ textAlign: "right" })}
-										>
-											Offer
-										</span>
+										<span className={css({ textAlign: "right" })}>Paid</span>
+										<span className={css({ textAlign: "right" })}>Offer</span>
 										<span>Sale</span>
 										<span>Notes</span>
 										<span />
@@ -1024,10 +1012,7 @@ function EditionDetail() {
 											<span className={css({ textAlign: "right" })}>
 												{c.offerAmount != null ? (
 													<span className={copyCellClass}>
-														{formatMoneyAmount(
-															c.offerAmount,
-															c.offerCurrency,
-														)}
+														{formatMoneyAmount(c.offerAmount, c.offerCurrency)}
 													</span>
 												) : (
 													<span className={copyCellMutedClass}>—</span>
@@ -1046,8 +1031,7 @@ function EditionDetail() {
 															c.soldAmount ?? "0",
 															c.soldCurrency,
 														)}{" "}
-														·{" "}
-														{new Date(c.soldAt).toLocaleDateString()}
+														· {new Date(c.soldAt).toLocaleDateString()}
 													</span>
 												) : (
 													<span className={copyCellMutedClass}>—</span>
@@ -1255,9 +1239,7 @@ function EditionDetail() {
 										inputMode="decimal"
 										autoComplete="off"
 										value={addCopyPurchaseAmount}
-										onChange={(ev) =>
-											setAddCopyPurchaseAmount(ev.target.value)
-										}
+										onChange={(ev) => setAddCopyPurchaseAmount(ev.target.value)}
 										placeholder="0.00"
 										className={inputClass}
 									/>
@@ -1292,9 +1274,7 @@ function EditionDetail() {
 											inputMode="decimal"
 											autoComplete="off"
 											value={addCopyOfferAmount}
-											onChange={(ev) =>
-												setAddCopyOfferAmount(ev.target.value)
-											}
+											onChange={(ev) => setAddCopyOfferAmount(ev.target.value)}
 											placeholder="0.00"
 											className={cx(inputClass, css({ flex: "1", minW: "0" }))}
 										/>
@@ -1463,7 +1443,10 @@ function EditionDetail() {
 											value={editOfferAmount}
 											onChange={(ev) => setEditOfferAmount(ev.target.value)}
 											placeholder="0.00"
-											className={cx(textInputClass, css({ flex: "1", minW: 0 }))}
+											className={cx(
+												textInputClass,
+												css({ flex: "1", minW: 0 }),
+											)}
 										/>
 										<input
 											id="edit-offer-ccy"

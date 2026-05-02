@@ -92,11 +92,12 @@ function Settings() {
 	const queryClient = useQueryClient();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [exportLoading, setExportLoading] = useState(false);
-	const [importResult, setImportResult] = useState<BulkImportResultDto | null>(null);
-	const [importError, setImportError] = useState<string | null>(null);
-	const [bulkResult, setBulkResult] = useState<BulkRefreshMarketResultDto | null>(
+	const [importResult, setImportResult] = useState<BulkImportResultDto | null>(
 		null,
 	);
+	const [importError, setImportError] = useState<string | null>(null);
+	const [bulkResult, setBulkResult] =
+		useState<BulkRefreshMarketResultDto | null>(null);
 	const [coversBulkResult, setCoversBulkResult] =
 		useState<FetchAllCoversResultDto | null>(null);
 	const [bulkProgress, setBulkProgress] = useState<{
@@ -340,9 +341,7 @@ function Settings() {
 						{importMutation.isPending ? "Importing…" : "Import CSV"}
 					</Button>
 
-					{importError && (
-						<div className={errorBoxClass}>{importError}</div>
-					)}
+					{importError && <div className={errorBoxClass}>{importError}</div>}
 
 					{importResult && !importMutation.isPending && (
 						<div className={resultBoxClass}>
@@ -369,23 +368,15 @@ function Settings() {
 								>
 									{importResult.failures
 										.slice(0, 8)
-										.map(
-											(
-												f: BulkImportResultDto["failures"][number],
-											) => (
-												<li key={`${f.rowNumber}-${f.copyId}`}>
-													Row {f.rowNumber}
-													{f.copyId
-														? ` (${f.copyId.slice(0, 8)}…)`
-														: ""}
-													: {f.message}
-												</li>
-											),
-										)}
+										.map((f: BulkImportResultDto["failures"][number]) => (
+											<li key={`${f.rowNumber}-${f.copyId}`}>
+												Row {f.rowNumber}
+												{f.copyId ? ` (${f.copyId.slice(0, 8)}…)` : ""}:{" "}
+												{f.message}
+											</li>
+										))}
 									{importResult.failures.length > 8 && (
-										<li>
-											… and {importResult.failures.length - 8} more
-										</li>
+										<li>… and {importResult.failures.length - 8} more</li>
 									)}
 								</ul>
 							)}
@@ -402,9 +393,9 @@ function Settings() {
 				</div>
 				<div className={cardBody}>
 					<p className={descriptionClass}>
-						Refresh PriceCharting market snapshots for every edition, or download
-						missing cover images. These jobs run across your full inventory (not
-						only the list view).
+						Refresh PriceCharting market snapshots for every edition, or
+						download missing cover images. These jobs run across your full
+						inventory (not only the list view).
 					</p>
 					<div
 						className={css({
@@ -467,7 +458,8 @@ function Settings() {
 								mb: "0",
 							})}
 						>
-							Refreshing market prices… {bulkProgress.current}/{bulkProgress.total}
+							Refreshing market prices… {bulkProgress.current}/
+							{bulkProgress.total}
 						</p>
 					)}
 
@@ -592,9 +584,7 @@ function Settings() {
 										</li>
 									))}
 									{coversBulkResult.failures.length > 8 && (
-										<li>
-											… and {coversBulkResult.failures.length - 8} more
-										</li>
+										<li>… and {coversBulkResult.failures.length - 8} more</li>
 									)}
 								</ul>
 							)}

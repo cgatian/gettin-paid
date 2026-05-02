@@ -128,7 +128,8 @@ const listClass = css({
 /** Matches each edition row grid: title block | FMV | Proposed | actions */
 const listColumnHeaderClass = css({
 	display: { base: "none", md: "grid" },
-	gridTemplateColumns: "minmax(0,1fr) auto auto minmax(min-content,max-content)",
+	gridTemplateColumns:
+		"minmax(0,1fr) auto auto minmax(min-content,max-content)",
 	columnGap: "4",
 	alignItems: "baseline",
 	px: "4",
@@ -445,7 +446,9 @@ function InventoryList() {
 						<div className={listColumnHeaderClass} aria-hidden="true">
 							<span style={{ gridColumn: 1 }} />
 							<span style={{ gridColumn: 2, textAlign: "right" }}>FMV</span>
-							<span style={{ gridColumn: 3, textAlign: "right" }}>Proposed</span>
+							<span style={{ gridColumn: 3, textAlign: "right" }}>
+								Proposed
+							</span>
 							<span style={{ gridColumn: 4 }} />
 						</div>
 					)}
@@ -491,13 +494,13 @@ function InventoryList() {
 													/>
 												) : null}
 												<div className={css({ minWidth: "0", flex: "1" })}>
-											<p className={editionTitleClass}>{e.title}</p>
-											<p className={editionMetaClass}>
-												{editionConsoleLabel(e)}
-												{e.copyCount != null && e.copyCount > 0
-													? ` · ${e.copyCount} ${e.copyCount === 1 ? "copy" : "copies"}`
-													: ""}
-											</p>
+													<p className={editionTitleClass}>{e.title}</p>
+													<p className={editionMetaClass}>
+														{editionConsoleLabel(e)}
+														{e.copyCount != null && e.copyCount > 0
+															? ` · ${e.copyCount} ${e.copyCount === 1 ? "copy" : "copies"}`
+															: ""}
+													</p>
 												</div>
 											</div>
 										</div>

@@ -15,9 +15,10 @@
     "build:frontend": "pnpm --filter @gettin-paid/frontend build",
     "build:backend": "pnpm --filter @gettin-paid/backend build",
     "start": "pnpm --filter @gettin-paid/frontend start",
-    "format": "pnpm exec biome format",
-    "lint": "pnpm exec biome lint",
-    "check": "pnpm exec biome check",
+    "format": "pnpm exec biome format --write .",
+    "lint": "pnpm exec biome check .",
+    "lint:fix": "pnpm exec biome check --write --unsafe .",
+    "check": "pnpm exec biome check .",
     "test": "pnpm --filter @gettin-paid/frontend test",
     "db:migrate": "pnpm --filter @gettin-paid/backend exec prisma migrate deploy",
     "db:generate": "pnpm --filter @gettin-paid/backend exec prisma generate"

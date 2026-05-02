@@ -21,6 +21,6 @@
     "gen:console-migration-sql": "node scripts/gen-pricecharting-console-migration-sql.mjs"
   },
   "devDependencies": {
-    "typescript": "^6.0.2"
+    "typescript": "6.0.3"
   }
 }

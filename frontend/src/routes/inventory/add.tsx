@@ -13,7 +13,12 @@ import { Camera } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import { Button, buttonVariants } from "#/components/ui/Button";
-import { Card, cardBody, cardHeader, formGroupClass } from "#/components/ui/Card";
+import {
+	Card,
+	cardBody,
+	cardHeader,
+	formGroupClass,
+} from "#/components/ui/Card";
 import { Field, Input, Select } from "#/components/ui/Input";
 import { apiFetch } from "#/lib/api";
 import { formatPcCents } from "#/lib/money";
@@ -138,7 +143,12 @@ const suggestRowClass = css({
 	_hover: { bg: "navHover" },
 });
 
-const mutedTextClass = css({ color: "foregroundMuted", fontSize: "xs", mt: "1", mb: "0" });
+const mutedTextClass = css({
+	color: "foregroundMuted",
+	fontSize: "xs",
+	mt: "1",
+	mb: "0",
+});
 
 const priceDlClass = css({
 	display: "grid",
@@ -149,7 +159,11 @@ const priceDlClass = css({
 	margin: "0",
 });
 
-const priceDtClass = css({ color: "foregroundMuted", fontWeight: "normal", margin: "0" });
+const priceDtClass = css({
+	color: "foregroundMuted",
+	fontWeight: "normal",
+	margin: "0",
+});
 const priceDdClass = css({ margin: "0", color: "foreground" });
 
 function AddGame() {
@@ -257,7 +271,6 @@ function AddGame() {
 		null,
 	);
 	const [formError, setFormError] = useState<string | null>(null);
-	const [gameLocated, setGameLocated] = useState(false);
 
 	const pricingPreviewQuery = useQuery({
 		queryKey: ["product-pricing", selectedPcProductId] as const,
@@ -306,9 +319,14 @@ function AddGame() {
 	const offerSliderCents = useMemo(() => {
 		if (baseOfferCents == null) return null;
 		const parsedCents =
-			offerAmountNumeric != null ? Math.round(offerAmountNumeric * 100) : baseOfferCents;
-		const minC = Math.max(100, Math.floor(baseOfferCents * 0.5 / 100) * 100);
-		const maxC = Math.max(Math.ceil(baseOfferCents * 2 / 100) * 100, minC + 100);
+			offerAmountNumeric != null
+				? Math.round(offerAmountNumeric * 100)
+				: baseOfferCents;
+		const minC = Math.max(100, Math.floor((baseOfferCents * 0.5) / 100) * 100);
+		const maxC = Math.max(
+			Math.ceil((baseOfferCents * 2) / 100) * 100,
+			minC + 100,
+		);
 		return { minC, maxC, value: Math.min(maxC, Math.max(minC, parsedCents)) };
 	}, [baseOfferCents, offerAmountNumeric]);
 
@@ -381,7 +399,13 @@ function AddGame() {
 			<h1 className={pageTitleClass}>Add a game</h1>
 			<Card>
 				<div className={cardHeader}>
-					<span className={css({ fontSize: "base", fontWeight: "medium", color: "foreground" })}>
+					<span
+						className={css({
+							fontSize: "base",
+							fontWeight: "medium",
+							color: "foreground",
+						})}
+					>
 						Edition details
 					</span>
 				</div>
@@ -430,20 +454,43 @@ function AddGame() {
 									onMouseDown={cancelBlurClose}
 								>
 									{suggestionsQuery.isFetching && (
-										<div className={css({ px: "3", py: "2", fontSize: "sm", color: "foregroundMuted" })}>
+										<div
+											className={css({
+												px: "3",
+												py: "2",
+												fontSize: "sm",
+												color: "foregroundMuted",
+											})}
+										>
 											Searching PriceCharting…
 										</div>
 									)}
 									{!suggestionsQuery.isFetching && suggestionsQuery.isError && (
-										<div className={css({ px: "3", py: "2", fontSize: "sm", color: "danger" })}>
+										<div
+											className={css({
+												px: "3",
+												py: "2",
+												fontSize: "sm",
+												color: "danger",
+											})}
+										>
 											Could not load suggestions (check API token / network).
 										</div>
 									)}
-									{!suggestionsQuery.isFetching && !suggestionsQuery.isError && suggestions.length === 0 && (
-										<div className={css({ px: "3", py: "2", fontSize: "sm", color: "foregroundMuted" })}>
-											No matches — keep typing or enter the title manually.
-										</div>
-									)}
+									{!suggestionsQuery.isFetching &&
+										!suggestionsQuery.isError &&
+										suggestions.length === 0 && (
+											<div
+												className={css({
+													px: "3",
+													py: "2",
+													fontSize: "sm",
+													color: "foregroundMuted",
+												})}
+											>
+												No matches — keep typing or enter the title manually.
+											</div>
+										)}
 									{suggestions.map((s) => (
 										<button
 											key={s.id}
@@ -454,7 +501,13 @@ function AddGame() {
 											onClick={() => applySuggestion(s)}
 										>
 											<span>{s.productName}</span>
-											<span className={css({ color: "foregroundMuted", ml: "2", fontSize: "xs" })}>
+											<span
+												className={css({
+													color: "foregroundMuted",
+													ml: "2",
+													fontSize: "xs",
+												})}
+											>
 												{s.consoleName}
 											</span>
 										</button>
@@ -463,57 +516,97 @@ function AddGame() {
 							)}
 							<p className={mutedTextClass}>
 								Type at least 2 characters for suggestions. Choosing one fills
-								the exact PriceCharting title and matching console when possible.
+								the exact PriceCharting title and matching console when
+								possible.
 							</p>
 						</Field>
 
 						{selectedPcProductId && (
 							<div className={formGroupClass} aria-live="polite">
-								<span className={css({ fontSize: "sm", fontWeight: "medium", color: "foreground" })}>
+								<span
+									className={css({
+										fontSize: "sm",
+										fontWeight: "medium",
+										color: "foreground",
+									})}
+								>
 									PriceCharting (FMV)
 								</span>
 								{pricingPreviewQuery.isFetching && (
-									<p className={css({ fontSize: "sm", color: "foregroundMuted", mb: "0" })}>
+									<p
+										className={css({
+											fontSize: "sm",
+											color: "foregroundMuted",
+											mb: "0",
+										})}
+									>
 										Loading prices…
 									</p>
 								)}
-								{!pricingPreviewQuery.isFetching && pricingPreviewQuery.isError && (
-									<p className={css({ fontSize: "sm", color: "danger", mb: "0" })}>
-										Could not load prices (check API token / network).
-									</p>
-								)}
-								{!pricingPreviewQuery.isFetching && !pricingPreviewQuery.isError && pricingPreviewQuery.data && (
-									<>
-										{(pricingPreviewQuery.data.productName || pricingPreviewQuery.data.consoleName) && (
-											<p className={css({ fontSize: "xs", color: "foregroundMuted", m: "0" })}>
-												{pricingPreviewQuery.data.productName}
-												{pricingPreviewQuery.data.consoleName && (
-													<> · {pricingPreviewQuery.data.consoleName}</>
-												)}
-											</p>
-										)}
-										<dl className={priceDlClass}>
-											<dt className={priceDtClass}>Loose</dt>
-											<dd className={priceDdClass}>{formatPcCents(pricingPreviewQuery.data.loosePrice)}</dd>
-											<dt className={priceDtClass}>CIB</dt>
-											<dd className={priceDdClass}>{formatPcCents(pricingPreviewQuery.data.cibPrice)}</dd>
-											<dt className={priceDtClass}>New</dt>
-											<dd className={priceDdClass}>{formatPcCents(pricingPreviewQuery.data.newPrice)}</dd>
-											<dt className={priceDtClass}>Graded</dt>
-											<dd className={priceDdClass}>{formatPcCents(pricingPreviewQuery.data.gradedPrice)}</dd>
-											{pricingPreviewQuery.data.salesVolume != null && (
-												<>
-													<dt className={priceDtClass}>Sales vol.</dt>
-													<dd className={priceDdClass}>{pricingPreviewQuery.data.salesVolume.toLocaleString()}</dd>
-												</>
-											)}
-										</dl>
-										<p className={mutedTextClass}>
-											Offer price below starts at the PriceCharting value for
-											your selected condition; use the slider or type to adjust.
+								{!pricingPreviewQuery.isFetching &&
+									pricingPreviewQuery.isError && (
+										<p
+											className={css({
+												fontSize: "sm",
+												color: "danger",
+												mb: "0",
+											})}
+										>
+											Could not load prices (check API token / network).
 										</p>
-									</>
-								)}
+									)}
+								{!pricingPreviewQuery.isFetching &&
+									!pricingPreviewQuery.isError &&
+									pricingPreviewQuery.data && (
+										<>
+											{(pricingPreviewQuery.data.productName ||
+												pricingPreviewQuery.data.consoleName) && (
+												<p
+													className={css({
+														fontSize: "xs",
+														color: "foregroundMuted",
+														m: "0",
+													})}
+												>
+													{pricingPreviewQuery.data.productName}
+													{pricingPreviewQuery.data.consoleName && (
+														<> · {pricingPreviewQuery.data.consoleName}</>
+													)}
+												</p>
+											)}
+											<dl className={priceDlClass}>
+												<dt className={priceDtClass}>Loose</dt>
+												<dd className={priceDdClass}>
+													{formatPcCents(pricingPreviewQuery.data.loosePrice)}
+												</dd>
+												<dt className={priceDtClass}>CIB</dt>
+												<dd className={priceDdClass}>
+													{formatPcCents(pricingPreviewQuery.data.cibPrice)}
+												</dd>
+												<dt className={priceDtClass}>New</dt>
+												<dd className={priceDdClass}>
+													{formatPcCents(pricingPreviewQuery.data.newPrice)}
+												</dd>
+												<dt className={priceDtClass}>Graded</dt>
+												<dd className={priceDdClass}>
+													{formatPcCents(pricingPreviewQuery.data.gradedPrice)}
+												</dd>
+												{pricingPreviewQuery.data.salesVolume != null && (
+													<>
+														<dt className={priceDtClass}>Sales vol.</dt>
+														<dd className={priceDdClass}>
+															{pricingPreviewQuery.data.salesVolume.toLocaleString()}
+														</dd>
+													</>
+												)}
+											</dl>
+											<p className={mutedTextClass}>
+												Offer price below starts at the PriceCharting value for
+												your selected condition; use the slider or type to
+												adjust.
+											</p>
+										</>
+									)}
 							</div>
 						)}
 
@@ -525,13 +618,24 @@ function AddGame() {
 									setPriceChartingConsoleId(v);
 									resetSelectionPricingState();
 								}}
-								disabled={platformsQuery.isLoading || sortedConsoles.length === 0}
-								items={sortedConsoles.map((c) => ({ value: c.id, label: c.name }))}
+								disabled={
+									platformsQuery.isLoading || sortedConsoles.length === 0
+								}
+								items={sortedConsoles.map((c) => ({
+									value: c.id,
+									label: c.name,
+								}))}
 							/>
 						</Field>
 
 						<Field label="UPC (8–14 digits)" htmlFor="upc">
-							<div className={css({ display: "flex", gap: "2", alignItems: "center" })}>
+							<div
+								className={css({
+									display: "flex",
+									gap: "2",
+									alignItems: "center",
+								})}
+							>
 								<Input
 									id="upc"
 									type="text"
@@ -562,7 +666,16 @@ function AddGame() {
 								/>
 							</div>
 							{scanError && (
-								<p className={css({ fontSize: "xs", color: "danger", mt: "1", mb: "0" })}>{scanError}</p>
+								<p
+									className={css({
+										fontSize: "xs",
+										color: "danger",
+										mt: "1",
+										mb: "0",
+									})}
+								>
+									{scanError}
+								</p>
 							)}
 						</Field>
 
@@ -570,7 +683,14 @@ function AddGame() {
 							label={
 								<>
 									Publisher{" "}
-									<span className={css({ color: "foregroundMuted", fontWeight: "normal" })}>(optional)</span>
+									<span
+										className={css({
+											color: "foregroundMuted",
+											fontWeight: "normal",
+										})}
+									>
+										(optional)
+									</span>
 								</>
 							}
 							htmlFor="publisher"
@@ -589,8 +709,13 @@ function AddGame() {
 								<Select
 									id="copy-class"
 									value={copyClassification}
-									onValueChange={(v) => setCopyClassification(v as CopyClassificationTag)}
-									items={CLASSIFICATION_OPTIONS.map((x) => ({ value: x, label: x.replace(/_/g, " ") }))}
+									onValueChange={(v) =>
+										setCopyClassification(v as CopyClassificationTag)
+									}
+									items={CLASSIFICATION_OPTIONS.map((x) => ({
+										value: x,
+										label: x.replace(/_/g, " "),
+									}))}
 								/>
 							</Field>
 
@@ -617,7 +742,13 @@ function AddGame() {
 							</Field>
 
 							<Field label="Asking (optional)" htmlFor="offer-amt">
-								<div className={css({ display: "flex", gap: "2", alignItems: "stretch" })}>
+								<div
+									className={css({
+										display: "flex",
+										gap: "2",
+										alignItems: "stretch",
+									})}
+								>
 									<Input
 										id="offer-amt"
 										type="text"
@@ -645,7 +776,12 @@ function AddGame() {
 								{offerSliderCents && (
 									<input
 										type="range"
-										className={css({ w: "100%", mt: "2", accentColor: "accent", cursor: "pointer" })}
+										className={css({
+											w: "100%",
+											mt: "2",
+											accentColor: "accent",
+											cursor: "pointer",
+										})}
 										min={offerSliderCents.minC}
 										max={offerSliderCents.maxC}
 										step={100}
@@ -669,7 +805,11 @@ function AddGame() {
 						</div>
 
 						<div className={actionRowClass}>
-							<Button type="submit" variant="primary" disabled={create.isPending}>
+							<Button
+								type="submit"
+								variant="primary"
+								disabled={create.isPending}
+							>
 								{create.isPending ? "Adding..." : "Add"}
 							</Button>
 							<Link

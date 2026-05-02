@@ -164,6 +164,7 @@ export function Select({
 
 export function Label({ className, children, ...props }: LabelProps) {
 	return (
+		// biome-ignore lint/a11y/noLabelWithoutControl: mirrors native <label>; pair with controls via Field/htmlFor or wrap inputs.
 		<label className={cx(labelClass, className)} {...props}>
 			{children}
 		</label>
