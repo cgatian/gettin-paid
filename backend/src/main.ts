@@ -12,9 +12,16 @@ async function bootstrap() {
 		}),
 	);
 	const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
+	console.log(`[CORS] FRONTEND_URL resolved to: "${frontendUrl}"`);
+	const origins = frontendUrl
+		.split(",")
+		.map((s) => s.trim().replace(/\/+$/, ""));
+	console.log(`[CORS] Allowed origins: ${JSON.stringify(origins)}`);
 	app.enableCors({
-		origin: frontendUrl.split(",").map((s) => s.trim()),
+		origin: origins,
 		credentials: true,
+		methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "Authorization", "Accept"],
 	});
 	app.setGlobalPrefix("api");
 	const port = Number(process.env.PORT ?? 4000);
