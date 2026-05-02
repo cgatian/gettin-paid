@@ -109,7 +109,7 @@ importers:
         specifier: 0.545.0
         version: 0.545.0(react@19.2.5)
       nitro:
-        specifier: npm:nitro-nightly@3.0.1-20260501-164602-aee73f19
+        specifier: npm:nitro-nightly@latest
         version: nitro-nightly@3.0.1-20260501-164602-aee73f19(chokidar@4.0.3)(dotenv@17.4.1)(giget@2.0.0)(jiti@2.6.1)(lru-cache@11.3.5)(vite@8.0.10(@types/node@22.19.17)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0))
       react:
         specifier: 19.2.5
