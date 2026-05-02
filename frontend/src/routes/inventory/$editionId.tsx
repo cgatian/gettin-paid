@@ -11,7 +11,7 @@ import {
 import { Dialog } from "@base-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { css, cx } from "styled-system/css";
 import { Badge } from "#/components/ui/Badge";
 import { Button } from "#/components/ui/Button";
@@ -432,6 +432,8 @@ function EditionDetail() {
 	const [addCopyOfferAmount, setAddCopyOfferAmount] = useState("");
 	const [addCopyOfferCurrency, setAddCopyOfferCurrency] = useState("USD");
 	const [addCopyPurchaseAmount, setAddCopyPurchaseAmount] = useState("");
+	const addCopyDialogPopupRef = useRef<HTMLDivElement>(null);
+	const editCopyDialogPopupRef = useRef<HTMLDivElement>(null);
 
 	const q = useQuery({
 		queryKey: ["edition", editionId],
@@ -1100,6 +1102,7 @@ function EditionDetail() {
 				<Dialog.Portal>
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup
+						ref={addCopyDialogPopupRef}
 						className={cx(modalPanelClass, css({ maxWidth: "520px" }))}
 					>
 						<Dialog.Title className={modalTitleClass}>
@@ -1140,6 +1143,7 @@ function EditionDetail() {
 											value: x,
 											label: x.replace(/_/g, " "),
 										}))}
+										portalContainer={addCopyDialogPopupRef}
 									/>
 								</div>
 								<div className={css({ flex: "2", minWidth: "120px" })}>
@@ -1378,6 +1382,7 @@ function EditionDetail() {
 				<Dialog.Portal>
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup
+						ref={editCopyDialogPopupRef}
 						className={cx(modalPanelClass, css({ maxWidth: "460px" }))}
 					>
 						<Dialog.Title className={modalTitleClass}>
@@ -1425,6 +1430,7 @@ function EditionDetail() {
 											value: x,
 											label: x.replace(/_/g, " "),
 										}))}
+										portalContainer={editCopyDialogPopupRef}
 									/>
 								</div>
 								<div>

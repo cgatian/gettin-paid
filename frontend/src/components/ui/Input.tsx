@@ -4,6 +4,7 @@ import type {
 	InputHTMLAttributes,
 	LabelHTMLAttributes,
 	ReactNode,
+	RefObject,
 } from "react";
 import { css, cx } from "styled-system/css";
 
@@ -59,7 +60,8 @@ const selectPopupClass = css({
 	overflowY: "auto",
 	maxHeight: "240px",
 	minWidth: "var(--anchor-width)",
-	zIndex: 50,
+	/** Above Dialog backdrop (100) / panel (101) so options receive clicks. */
+	zIndex: 200,
 	py: "1",
 });
 
@@ -100,6 +102,8 @@ interface SelectProps {
 	items: SelectItem[];
 	disabled?: boolean;
 	className?: string;
+	/** Render the list inside this node (e.g. dialog popup ref) so modal dialogs keep pointer events. */
+	portalContainer?: RefObject<HTMLElement | null>;
 }
 
 interface LabelProps extends LabelHTMLAttributes<HTMLLabelElement> {
@@ -117,6 +121,7 @@ export function Select({
 	items,
 	disabled,
 	className,
+	portalContainer,
 }: SelectProps) {
 	return (
 		<BaseSelect.Root
@@ -131,7 +136,7 @@ export function Select({
 				<BaseSelect.Value />
 				<ChevronDown size={14} />
 			</BaseSelect.Trigger>
-			<BaseSelect.Portal>
+			<BaseSelect.Portal container={portalContainer}>
 				<BaseSelect.Positioner
 					alignItemWithTrigger={false}
 					positionMethod="fixed"
