@@ -9,6 +9,7 @@ const sidebarClass = css({
   display: 'flex',
   flexDir: 'column',
   overflow: 'hidden',
+  pt: '10',
 })
 
 const logoAreaClass = css({

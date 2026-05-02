@@ -14,9 +14,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as InventoryIndexRouteImport } from './routes/inventory/index'
 import { Route as InventoryAddRouteImport } from './routes/inventory/add'
 import { Route as InventoryEditionIdRouteImport } from './routes/inventory/$editionId'
-import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
-import { Route as DemoFormSimpleRouteImport } from './routes/demo/form.simple'
-import { Route as DemoFormAddressRouteImport } from './routes/demo/form.address'
 
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
@@ -43,95 +40,54 @@ const InventoryEditionIdRoute = InventoryEditionIdRouteImport.update({
   path: '/inventory/$editionId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
-  id: '/demo/tanstack-query',
-  path: '/demo/tanstack-query',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoFormSimpleRoute = DemoFormSimpleRouteImport.update({
-  id: '/demo/form/simple',
-  path: '/demo/form/simple',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoFormAddressRoute = DemoFormAddressRouteImport.update({
-  id: '/demo/form/address',
-  path: '/demo/form/address',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
   '/inventory/': typeof InventoryIndexRoute
-  '/demo/form/address': typeof DemoFormAddressRoute
-  '/demo/form/simple': typeof DemoFormSimpleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
   '/inventory': typeof InventoryIndexRoute
-  '/demo/form/address': typeof DemoFormAddressRoute
-  '/demo/form/simple': typeof DemoFormSimpleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
   '/inventory/': typeof InventoryIndexRoute
-  '/demo/form/address': typeof DemoFormAddressRoute
-  '/demo/form/simple': typeof DemoFormSimpleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/about'
-    | '/demo/tanstack-query'
     | '/inventory/$editionId'
     | '/inventory/add'
     | '/inventory/'
-    | '/demo/form/address'
-    | '/demo/form/simple'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/about'
-    | '/demo/tanstack-query'
-    | '/inventory/$editionId'
-    | '/inventory/add'
-    | '/inventory'
-    | '/demo/form/address'
-    | '/demo/form/simple'
+  to: '/' | '/about' | '/inventory/$editionId' | '/inventory/add' | '/inventory'
   id:
     | '__root__'
     | '/'
     | '/about'
-    | '/demo/tanstack-query'
     | '/inventory/$editionId'
     | '/inventory/add'
     | '/inventory/'
-    | '/demo/form/address'
-    | '/demo/form/simple'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   InventoryEditionIdRoute: typeof InventoryEditionIdRoute
   InventoryAddRoute: typeof InventoryAddRoute
   InventoryIndexRoute: typeof InventoryIndexRoute
-  DemoFormAddressRoute: typeof DemoFormAddressRoute
-  DemoFormSimpleRoute: typeof DemoFormSimpleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -171,39 +127,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventoryEditionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/tanstack-query': {
-      id: '/demo/tanstack-query'
-      path: '/demo/tanstack-query'
-      fullPath: '/demo/tanstack-query'
-      preLoaderRoute: typeof DemoTanstackQueryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/form/simple': {
-      id: '/demo/form/simple'
-      path: '/demo/form/simple'
-      fullPath: '/demo/form/simple'
-      preLoaderRoute: typeof DemoFormSimpleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/form/address': {
-      id: '/demo/form/address'
-      path: '/demo/form/address'
-      fullPath: '/demo/form/address'
-      preLoaderRoute: typeof DemoFormAddressRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   InventoryEditionIdRoute: InventoryEditionIdRoute,
   InventoryAddRoute: InventoryAddRoute,
   InventoryIndexRoute: InventoryIndexRoute,
-  DemoFormAddressRoute: DemoFormAddressRoute,
-  DemoFormSimpleRoute: DemoFormSimpleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

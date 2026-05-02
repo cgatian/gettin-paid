@@ -1,7 +1,10 @@
 import {
 	Body,
 	Controller,
+	Delete,
 	Get,
+	HttpCode,
+	HttpStatus,
 	Param,
 	Patch,
 	Post,
@@ -55,6 +58,12 @@ export class InventoryController {
 	@Patch("editions/:id")
 	patchEdition(@Param("id") id: string, @Body() dto: PatchEditionDto) {
 		return this.inventory.patchEdition(id, dto);
+	}
+
+	@Delete("editions/:id")
+	@HttpCode(HttpStatus.NO_CONTENT)
+	deleteEdition(@Param("id") id: string) {
+		return this.inventory.deleteEdition(id);
 	}
 
 	@Post("editions/:editionId/copies")

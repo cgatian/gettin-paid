@@ -7,6 +7,7 @@ import {
 } from '@gettin-paid/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { Camera } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { css } from 'styled-system/css'
 import { Button, buttonVariants } from '#/components/ui/Button'
@@ -150,6 +151,29 @@ function AddGame() {
     [platformsQuery.data],
   )
   const [upc, setUpc] = useState('')
+  const [scanError, setScanError] = useState<string | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleScan(ev: React.ChangeEvent<HTMLInputElement>) {
+    const file = ev.target.files?.[0]
+    ev.target.value = ''
+    if (!file) return
+    setIsScanning(true)
+    setScanError(null)
+    const url = URL.createObjectURL(file)
+    try {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser')
+      const reader = new BrowserMultiFormatReader()
+      const result = await reader.decodeFromImageUrl(url)
+      setUpc(result.getText())
+    } catch {
+      setScanError('No barcode found — try a clearer photo.')
+    } finally {
+      URL.revokeObjectURL(url)
+      setIsScanning(false)
+    }
+  }
   const [title, setTitle] = useState('')
   const [priceChartingConsoleId, setPriceChartingConsoleId] = useState(
     POPULAR_PRICECHARTING_CONSOLE_IDS[0] ?? 'G8',
@@ -263,14 +287,6 @@ function AddGame() {
       </Link>
 
       <h1 className={pageTitleClass}>Add a game</h1>
-
-      <p className={css({ fontSize: 'sm', color: 'foregroundMuted', mb: '5', maxWidth: '520px' })}>
-        The API resolves a PriceCharting product id from your UPC, title, and console (requires{' '}
-        <code className={codeClass}>PRICECHARTING_API_TOKEN</code> on the server). Saving also
-        creates your first <strong>owned copy</strong> (condition below; default CIB). Pick a
-        console, then type a title — suggestions come from PriceCharting search.
-      </p>
-
       <Card>
         <div className={cardHeader}>
           <span className={css({ fontSize: 'base', fontWeight: 'medium', color: 'foreground' })}>
@@ -290,15 +306,41 @@ function AddGame() {
 
             <div className={fieldClass}>
               <Label htmlFor="upc">UPC (digits only, 8–14)</Label>
-              <Input
-                id="upc"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                value={upc}
-                onChange={(e) => setUpc(e.target.value)}
-                required
-              />
+              <div className={css({ display: 'flex', gap: '2', alignItems: 'center' })}>
+                <Input
+                  id="upc"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={upc}
+                  onChange={(e) => setUpc(e.target.value)}
+                  required
+                  className={css({ flex: '1', width: 'auto' })}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={isScanning}
+                  onClick={() => cameraInputRef.current?.click()}
+                  aria-label="Scan barcode with camera"
+                >
+                  <Camera size={16} />
+                </Button>
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={handleScan}
+                />
+              </div>
+              {scanError && (
+                <p className={css({ fontSize: 'xs', color: 'danger', mt: '1', mb: '0' })}>
+                  {scanError}
+                </p>
+              )}
             </div>
 
             <div className={css({ display: 'block' })}>

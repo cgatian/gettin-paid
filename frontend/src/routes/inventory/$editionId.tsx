@@ -5,9 +5,9 @@ import {
   labelPriceChartingConsole,
 } from '@gettin-paid/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { css } from 'styled-system/css'
+import { css, cx } from 'styled-system/css'
 import { Button } from '#/components/ui/Button'
 import { Card, cardBody, cardHeader } from '#/components/ui/Card'
 import { Badge } from '#/components/ui/Badge'
@@ -217,8 +217,8 @@ const overlayClass = css({
 })
 
 const modalPanelClass = css({
-  bg: 'card',
-  borderRadius: 'btn',
+  bg: 'surface',
+  borderRadius: 'card',
   borderWidth: '1px',
   borderStyle: 'solid',
   borderColor: 'border',
@@ -246,9 +246,12 @@ const modalActionsClass = css({
 
 function EditionDetail() {
   const { editionId } = Route.useParams()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [copyError, setCopyError] = useState<string | null>(null)
   const [refreshError, setRefreshError] = useState<string | null>(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [classification, setClassification] = useState<CopyClassification>(CopyClassification.CIB)
   const [notes, setNotes] = useState('')
   const [sellCopyId, setSellCopyId] = useState<string | null>(null)
@@ -353,6 +356,32 @@ function EditionDetail() {
     return () => window.removeEventListener('keydown', onKey)
   }, [sellCopyId])
 
+  const deleteGame = useMutation({
+    mutationFn: () => apiFetch<void>(`/editions/${editionId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      setDeleteModalOpen(false)
+      setDeleteError(null)
+      void queryClient.removeQueries({ queryKey: ['edition', editionId] })
+      void queryClient.invalidateQueries({ queryKey: ['editions'] })
+      void navigate({ to: '/inventory' })
+    },
+    onError: (e) => {
+      setDeleteError(e instanceof Error ? e.message : 'Could not delete game')
+    },
+  })
+
+  useEffect(() => {
+    if (!deleteModalOpen) return
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape' && !deleteGame.isPending) {
+        setDeleteModalOpen(false)
+        setDeleteError(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [deleteModalOpen, deleteGame.isPending])
+
   if (q.isLoading) {
     return <p className={stateTextClass}>Loading…</p>
   }
@@ -382,7 +411,28 @@ function EditionDetail() {
       </Link>
 
       <div className={pageHeaderClass}>
-        <h1 className={pageTitleClass}>{e.title}</h1>
+        <div
+          className={css({
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: '4',
+            flexWrap: 'wrap',
+            mb: '2',
+          })}
+        >
+          <h1 className={cx(pageTitleClass, css({ mb: '0' }))}>{e.title}</h1>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => {
+              setDeleteModalOpen(true)
+              setDeleteError(null)
+            }}
+          >
+            Delete game
+          </Button>
+        </div>
         <div className={metaRowClass}>
           <Badge variant="default">{editionConsoleBadge(e)}</Badge>
           <span className={metaTextClass}>UPC {e.upc}</span>
@@ -642,6 +692,69 @@ function EditionDetail() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteModalOpen && (
+        <div
+          className={overlayClass}
+          role="presentation"
+          onClick={(ev) => {
+            if (ev.target === ev.currentTarget && !deleteGame.isPending) {
+              setDeleteModalOpen(false)
+              setDeleteError(null)
+            }
+          }}
+        >
+          <div
+            className={modalPanelClass}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-dialog-title"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <h2 id="delete-dialog-title" className={modalTitleClass}>
+              Delete this game?
+            </h2>
+            <p
+              className={css({
+                fontSize: 'sm',
+                color: 'foregroundMuted',
+                lineHeight: '1.5',
+                margin: '0 0 16px 0',
+              })}
+            >
+              This permanently removes{' '}
+              <strong className={css({ color: 'foreground' })}>{e.title}</strong> and all copies you
+              logged, including sale records. The market snapshot is removed too. This cannot be
+              undone.
+            </p>
+            {deleteError && <p className={errorBannerClass}>{deleteError}</p>}
+            <div className={modalActionsClass}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setDeleteModalOpen(false)
+                  setDeleteError(null)
+                }}
+                disabled={deleteGame.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => {
+                  setDeleteError(null)
+                  deleteGame.mutate()
+                }}
+                disabled={deleteGame.isPending}
+              >
+                {deleteGame.isPending ? 'Deleting…' : 'Delete game'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

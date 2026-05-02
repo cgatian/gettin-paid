@@ -366,6 +366,11 @@ export class InventoryService {
 		]);
 	}
 
+	async deleteEdition(id: string) {
+		await this.ensureEdition(id);
+		await this.prisma.gameEdition.delete({ where: { id } });
+	}
+
 	private async ensureEdition(id: string) {
 		const e = await this.prisma.gameEdition.findUnique({ where: { id } });
 		if (!e) throw new NotFoundException("Edition not found");
