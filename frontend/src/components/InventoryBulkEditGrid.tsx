@@ -33,6 +33,10 @@ export type BulkInventoryGridRow = {
 	copyClassification: CopyClassificationType;
 	soldAt: string | null;
 	fmvLabel: string;
+	/** Formatted proposed / list price (offer) */
+	proposedLabel: string;
+	/** Formatted sold proceeds when sold */
+	soldLabel: string;
 };
 
 const classificationValues = Object.values(
@@ -233,6 +237,22 @@ export function InventoryBulkEditGrid({
 				headerName: 'FMV',
 				minWidth: 88,
 				maxWidth: 110,
+				sortable: true,
+				filter: 'agTextColumnFilter',
+			},
+			{
+				field: 'proposedLabel',
+				headerName: 'Proposed',
+				minWidth: 96,
+				maxWidth: 120,
+				sortable: true,
+				filter: 'agTextColumnFilter',
+			},
+			{
+				field: 'soldLabel',
+				headerName: 'Sold price',
+				minWidth: 96,
+				maxWidth: 120,
 				sortable: true,
 				filter: 'agTextColumnFilter',
 			},

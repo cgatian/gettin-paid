@@ -1,7 +1,7 @@
 import type { GameEditionDto } from '@gettin-paid/shared';
 import { labelPriceChartingConsole } from '@gettin-paid/shared';
 import type { BulkInventoryGridRow } from '#/components/InventoryBulkEditGrid';
-import { formatPcCents } from '#/lib/money';
+import { formatMoneyAmount, formatPcCents } from '#/lib/money';
 
 export function editionsToBulkRows(
 	editions: GameEditionDto[],
@@ -12,6 +12,14 @@ export function editionsToBulkRows(
 			e.priceChartingConsoleName ??
 			labelPriceChartingConsole(e.priceChartingConsoleId ?? '');
 		for (const c of e.activeCopies ?? []) {
+			const proposedLabel =
+				c.offerAmount != null && String(c.offerAmount).trim() !== ''
+					? formatMoneyAmount(c.offerAmount)
+					: '—';
+			const soldLabel =
+				c.soldAmount != null && String(c.soldAmount).trim() !== ''
+					? formatMoneyAmount(c.soldAmount)
+					: '—';
 			rows.push({
 				copyId: c.id,
 				editionId: e.id,
@@ -22,6 +30,8 @@ export function editionsToBulkRows(
 				copyClassification: c.copyClassification,
 				soldAt: c.soldAt,
 				fmvLabel: formatPcCents(c.fmvCents),
+				proposedLabel,
+				soldLabel,
 			});
 		}
 	}

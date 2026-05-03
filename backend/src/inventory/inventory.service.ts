@@ -269,6 +269,8 @@ export class InventoryService {
 						copyClassification: true,
 						offerAmount: true,
 						offerCurrency: true,
+						soldAmount: true,
+						soldCurrency: true,
 						soldAt: true,
 						collectionLinks: {
 							select: {
@@ -346,6 +348,8 @@ export class InventoryService {
 					: null,
 				offerAmount: decStr(c.offerAmount),
 				offerCurrency: c.offerCurrency,
+				soldAmount: decStr(c.soldAmount),
+				soldCurrency: c.soldCurrency,
 				collections: (c.collectionLinks ?? []).map((l) =>
 					this.collectionToSummary(l.collection)!,
 				),

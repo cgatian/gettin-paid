@@ -135,6 +135,9 @@ export type EditionListActiveCopyDto = {
 	fmvCents: number | null;
 	offerAmount: string | null;
 	offerCurrency: string | null;
+	/** Sale proceeds when sold; null if not sold */
+	soldAmount: string | null;
+	soldCurrency: string | null;
 	/** Shelf collections this copy belongs to (may be multiple). */
 	collections: GameCollectionSummaryDto[];
 	/** ISO date-only or datetime when sold; null while still in inventory */
