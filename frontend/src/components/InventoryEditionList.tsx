@@ -344,9 +344,6 @@ export function InventoryEditionList({
 											)}
 										>
 											<span>{classificationLabel(row.copyClassification)}</span>
-											{collectionsForListCopy(row).map((col) => (
-												<CollectionBadge key={col.id} collection={col} />
-											))}
 											{row.soldAt ? (
 												<span
 													className={css({

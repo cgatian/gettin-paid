@@ -4,7 +4,7 @@ import {
 	POPULAR_PRICECHARTING_CONSOLE_IDS,
 } from '@gettin-paid/shared';
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { css } from 'styled-system/css';
 import { DashboardSummaryPanel } from '#/components/DashboardSummaryPanel';
@@ -18,13 +18,18 @@ const popularSet = new Set(POPULAR_PRICECHARTING_CONSOLE_IDS);
 
 const chipConsoleIds = POPULAR_PRICECHARTING_CONSOLE_IDS.slice(0, 10);
 
+function parseInventorySearch(search: Record<string, unknown>) {
+	const out: { console?: string; sold?: true } = {};
+	const c = search.console;
+	if (typeof c === 'string' && c.trim()) out.console = c.trim();
+	const s = search.sold;
+	if (s === true || s === 'true' || s === 1 || s === '1') out.sold = true;
+	return out;
+}
+
 export const Route = createFileRoute('/inventory/')({
 	component: InventoryList,
-	validateSearch: (search: Record<string, unknown>) => {
-		const c = search.console;
-		if (typeof c === 'string' && c.trim()) return { console: c.trim() };
-		return {};
-	},
+	validateSearch: parseInventorySearch,
 });
 
 const pageClass = css({ p: '6' });
@@ -56,7 +61,8 @@ const filtersStackClass = css({
 const searchBlockClass = css({
 	display: 'flex',
 	alignItems: 'center',
-	gap: '2',
+	flexWrap: 'wrap',
+	gap: '3',
 	p: '4',
 	borderRadius: 'card',
 	bg: 'surface',
@@ -149,8 +155,13 @@ const errorTextClass = css({
 	mb: '3',
 });
 
+type InventoryListSearch = ReturnType<typeof parseInventorySearch>;
+
 function InventoryList() {
-	const { console: consoleFilter } = Route.useSearch();
+	const navigate = useNavigate();
+	const { console: consoleFilter, sold: includeSoldSearch } = Route.useSearch();
+	const includeSold = includeSoldSearch === true;
+	const soldSearchFragment = includeSold ? ({ sold: true } as const) : {};
 	const platformsQuery = useQuery({
 		queryKey: ['platforms'],
 		queryFn: () => apiFetch<{ id: string; name: string }[]>('/platforms'),
@@ -201,12 +212,21 @@ function InventoryList() {
 	});
 
 	const [titleFilter, setTitleFilter] = useState('');
-	const filteredEditions = useMemo(() => {
+
+	const editionsAfterSoldFilter = useMemo(() => {
 		if (!data?.length) return [];
+		if (includeSold) return data;
+		return data.filter((e) => (e.activeCopies?.length ?? 0) > 0);
+	}, [data, includeSold]);
+
+	const filteredEditions = useMemo(() => {
+		if (!editionsAfterSoldFilter.length) return [];
 		const needle = titleFilter.trim().toLowerCase();
-		if (!needle) return data;
-		return data.filter((e) => e.title.toLowerCase().includes(needle));
-	}, [data, titleFilter]);
+		if (!needle) return editionsAfterSoldFilter;
+		return editionsAfterSoldFilter.filter((e) =>
+			e.title.toLowerCase().includes(needle),
+		);
+	}, [editionsAfterSoldFilter, titleFilter]);
 
 	return (
 		<div className={pageClass}>
@@ -280,13 +300,41 @@ function InventoryList() {
 						autoComplete="off"
 						className={css({ flex: '1', minW: '0' })}
 					/>
+					<label
+						className={css({
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: '2',
+							fontSize: 'sm',
+							color: 'foreground',
+							cursor: 'pointer',
+							whiteSpace: 'nowrap',
+						})}
+					>
+						<input
+							type="checkbox"
+							checked={includeSold}
+							onChange={() => {
+								void navigate({
+									search: (prev: InventoryListSearch) => {
+										const next = { ...prev };
+										if (includeSold) delete next.sold;
+										else next.sold = true;
+										return next;
+									},
+								});
+							}}
+							className={css({ cursor: 'pointer' })}
+						/>
+						Include sold
+					</label>
 				</div>
 				<div className={filtersRowClass}>
 					<span className={filterLabelClass}>Console:</span>
 					<FilterChip
 						label="All"
 						to="/inventory"
-						search={{}}
+						search={soldSearchFragment}
 						active={!consoleFilter}
 					/>
 					{chipConsoleIds.map((id) => (
@@ -294,7 +342,7 @@ function InventoryList() {
 							key={id}
 							label={chipLabel(id)}
 							to="/inventory"
-							search={{ console: id }}
+							search={{ console: id, ...soldSearchFragment }}
 							active={consoleFilter === id}
 						/>
 					))}
@@ -330,7 +378,7 @@ function InventoryList() {
 										<Link
 											key={row.id}
 											to="/inventory"
-											search={{ console: row.id }}
+											search={{ console: row.id, ...soldSearchFragment }}
 											className={css({
 												display: 'block',
 												px: '3',
@@ -387,14 +435,30 @@ function InventoryList() {
 				</div>
 			)}
 
-			{data && data.length > 0 && filteredEditions.length === 0 && (
-				<div className={emptyClass}>
-					<p className={emptyTitleClass}>No titles match your search.</p>
-					<p className={css({ fontSize: 'sm' })}>
-						Try a different phrase or clear the search box.
-					</p>
-				</div>
-			)}
+			{data &&
+				data.length > 0 &&
+				editionsAfterSoldFilter.length === 0 &&
+				!includeSold && (
+					<div className={emptyClass}>
+						<p className={emptyTitleClass}>No active inventory on this view.</p>
+						<p className={css({ fontSize: 'sm', mb: '3' })}>
+							All matching games are sold out. Turn on <strong>Include sold</strong>{' '}
+							to list those titles.
+						</p>
+					</div>
+				)}
+
+			{data &&
+				data.length > 0 &&
+				editionsAfterSoldFilter.length > 0 &&
+				filteredEditions.length === 0 && (
+					<div className={emptyClass}>
+						<p className={emptyTitleClass}>No titles match your search.</p>
+						<p className={css({ fontSize: 'sm' })}>
+							Try a different phrase or clear the search box.
+						</p>
+					</div>
+				)}
 
 			{data && data.length > 0 && filteredEditions.length > 0 && (
 				<InventoryEditionList editions={filteredEditions} />
@@ -411,7 +475,7 @@ function FilterChip({
 }: {
 	label: string;
 	to: '/inventory';
-	search?: { console?: string };
+	search?: InventoryListSearch;
 	active: boolean;
 }) {
 	return (
