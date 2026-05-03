@@ -80,12 +80,27 @@ function InventoryBulkEditPage() {
 						reflects each row&apos;s classification against the latest snapshot.
 					</p>
 				</div>
-				<Link
-					to="/inventory"
-					className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+				<div
+					className={css({
+						display: 'flex',
+						flexWrap: 'wrap',
+						gap: '2',
+						alignItems: 'center',
+					})}
 				>
-					← Back to games
-				</Link>
+					<Link
+						to="/settings"
+						className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+					>
+						Settings
+					</Link>
+					<Link
+						to="/inventory"
+						className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+					>
+						← Back to games
+					</Link>
+				</div>
 			</div>
 
 			{isLoading && (

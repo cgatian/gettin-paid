@@ -273,6 +273,14 @@ export type FetchAllCoversResultDto = {
 	}[];
 };
 
+/** POST /api/editions/reset-all-covers */
+export type ResetAllCoversResultDto = {
+	/** Rows updated (all editions get null cover fields). */
+	editionsUpdated: number;
+	/** Distinct PriceCharting product ids for which on-disk cover files were removed. */
+	productIdsFilesRemoved: number;
+};
+
 /** POST /api/editions/:id/fetch-cover */
 export type FetchEditionCoverResponseDto = EditionDetailDto & {
 	/** True when cover was already on disk and scrape was skipped */

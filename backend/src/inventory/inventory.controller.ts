@@ -140,6 +140,11 @@ export class InventoryController {
 		return this.inventory.fetchAllCovers(force);
 	}
 
+	@Post("editions/reset-all-covers")
+	resetAllCovers() {
+		return this.inventory.resetAllCovers();
+	}
+
 	@Post("editions/:id/fetch-cover")
 	fetchEditionCover(
 		@Param("id") id: string,

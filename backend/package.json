@@ -12,7 +12,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "import:resolve-upcs": "tsx src/oneoff/resolve-listing-upcs.run.ts",
     "import:gen-sql": "tsx src/oneoff/generate-game-edition-migration.run.ts",
-    "import:refresh-snapshots": "tsx src/oneoff/bulk-refresh-snapshots.run.ts"
+    "import:refresh-snapshots": "tsx src/oneoff/bulk-refresh-snapshots.run.ts",
+    "fetch-covers": "tsx src/oneoff/fetch-all-covers.run.ts"
   },
   "dependencies": {
     "@gettin-paid/shared": "workspace:*",

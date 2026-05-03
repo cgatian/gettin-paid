@@ -2,8 +2,8 @@ import type {
 	BulkImportResultDto,
 	BulkRefreshMarketResultDto,
 	FetchAllCoversResultDto,
-	FetchEditionCoverResponseDto,
 	GameEditionDto,
+	ResetAllCoversResultDto,
 } from '@gettin-paid/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
@@ -14,32 +14,6 @@ import { Card, cardBody, cardHeader } from '#/components/ui/Card';
 import { apiFetch, apiFetchBlob, apiFetchPost } from '#/lib/api';
 
 export const Route = createFileRoute('/settings')({ component: Settings });
-
-/** Match backend COVER_SCRAPE_MIN_INTERVAL_MS — pause between cover scrapes to avoid PriceCharting 403s. */
-const COVER_FETCH_THROTTLE_MS = 2000;
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** Only editions missing a cover and linked to PriceCharting are fetched; others are counted, not requested. */
-function editionsNeedingCoverFetch(all: GameEditionDto[]) {
-	const skippedHadCover: GameEditionDto[] = [];
-	const missingPriceChartingId: GameEditionDto[] = [];
-	const toFetch: GameEditionDto[] = [];
-	for (const e of all) {
-		if (e.hasCover) {
-			skippedHadCover.push(e);
-			continue;
-		}
-		if (!e.priceChartingProductId?.trim()) {
-			missingPriceChartingId.push(e);
-			continue;
-		}
-		toFetch.push(e);
-	}
-	return { skippedHadCover, missingPriceChartingId, toFetch };
-}
 
 const pageClass = css({ p: '6', maxWidth: '700px' });
 
@@ -100,11 +74,9 @@ function Settings() {
 		useState<BulkRefreshMarketResultDto | null>(null);
 	const [coversBulkResult, setCoversBulkResult] =
 		useState<FetchAllCoversResultDto | null>(null);
+	const [resetCoversResult, setResetCoversResult] =
+		useState<ResetAllCoversResultDto | null>(null);
 	const [bulkProgress, setBulkProgress] = useState<{
-		current: number;
-		total: number;
-	} | null>(null);
-	const [coversProgress, setCoversProgress] = useState<{
 		current: number;
 		total: number;
 	} | null>(null);
@@ -114,75 +86,33 @@ function Settings() {
 		queryFn: () => apiFetch<GameEditionDto[]>(`/editions`),
 	});
 
+	const resetAllCovers = useMutation({
+		mutationFn: () =>
+			apiFetchPost<ResetAllCoversResultDto>('/editions/reset-all-covers'),
+		onMutate: () => {
+			setCoversBulkResult(null);
+		},
+		onSuccess: (r) => {
+			setResetCoversResult(r);
+			setCoversBulkResult(null);
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['edition'] });
+		},
+	});
+
 	const fetchAllCovers = useMutation({
-		mutationFn: async (editions: GameEditionDto[]) => {
-			const total = editions.length;
-			if (total === 0) {
-				return {
-					total: 0,
-					ok: 0,
-					skipped: 0,
-					failed: 0,
-					failures: [],
-				} satisfies FetchAllCoversResultDto;
-			}
-			const { skippedHadCover, missingPriceChartingId, toFetch } =
-				editionsNeedingCoverFetch(editions);
-			const failures: FetchAllCoversResultDto['failures'] =
-				missingPriceChartingId.map((e) => ({
-					editionId: e.id,
-					title: e.title,
-					upc: e.upc,
-					message: 'No PriceCharting product id',
-				}));
-			let ok = 0;
-			let skipped = skippedHadCover.length;
-
-			if (toFetch.length === 0) {
-				return {
-					total,
-					ok: 0,
-					skipped,
-					failed: failures.length,
-					failures,
-				} satisfies FetchAllCoversResultDto;
-			}
-
-			const fetchTotal = toFetch.length;
-			for (let i = 0; i < toFetch.length; i++) {
-				if (i > 0) await sleep(COVER_FETCH_THROTTLE_MS);
-				const e = toFetch[i];
-				setCoversProgress({ current: i + 1, total: fetchTotal });
-				try {
-					const res = await apiFetchPost<FetchEditionCoverResponseDto>(
-						`/editions/${e.id}/fetch-cover`,
-					);
-					if (res.coverAlreadyStored) skipped++;
-					else ok++;
-				} catch (err) {
-					failures.push({
-						editionId: e.id,
-						title: e.title,
-						upc: e.upc,
-						message: err instanceof Error ? err.message : String(err),
-					});
-				}
-			}
-			return {
-				total,
-				ok,
-				skipped,
-				failed: failures.length,
-				failures,
-			} satisfies FetchAllCoversResultDto;
+		mutationFn: ({ force }: { force: boolean }) =>
+			apiFetchPost<FetchAllCoversResultDto>(
+				`/editions/fetch-all-covers${force ? '?force=true' : ''}`,
+			),
+		onMutate: () => {
+			setCoversBulkResult(null);
+			setResetCoversResult(null);
 		},
 		onSuccess: (r) => {
 			setCoversBulkResult(r);
 			void queryClient.invalidateQueries({ queryKey: ['editions'] });
 			void queryClient.invalidateQueries({ queryKey: ['edition'] });
-		},
-		onSettled: () => {
-			setCoversProgress(null);
 		},
 	});
 
@@ -236,6 +166,11 @@ function Settings() {
 	const editions = editionsQuery.data;
 	const editionsBusy =
 		editionsQuery.isLoading || editionsQuery.isError || !editions?.length;
+
+	const bulkJobsBusy =
+		bulkRefresh.isPending ||
+		fetchAllCovers.isPending ||
+		resetAllCovers.isPending;
 
 	async function handleExport() {
 		setExportLoading(true);
@@ -393,9 +328,11 @@ function Settings() {
 				</div>
 				<div className={cardBody}>
 					<p className={descriptionClass}>
-						Refresh PriceCharting market snapshots for every edition, or
-						download missing cover images. These jobs run across your full
-						inventory (not only the list view).
+						Refresh PriceCharting market snapshots for every edition, or run
+						cover downloads on the server (one request; large libraries can take
+						several minutes). Use re-fetch to scrape every cover again, or
+						remove all to clear the database and image files before fetching
+						fresh copies.
 					</p>
 					<div
 						className={css({
@@ -409,11 +346,7 @@ function Settings() {
 							type="button"
 							variant="secondary"
 							size="sm"
-							disabled={
-								bulkRefresh.isPending ||
-								fetchAllCovers.isPending ||
-								editionsBusy
-							}
+							disabled={bulkJobsBusy || editionsBusy}
 							onClick={() => {
 								if (!editions?.length || bulkRefresh.isPending) return;
 								setBulkResult(null);
@@ -430,22 +363,55 @@ function Settings() {
 							type="button"
 							variant="secondary"
 							size="sm"
-							disabled={
-								fetchAllCovers.isPending ||
-								bulkRefresh.isPending ||
-								editionsBusy
-							}
+							disabled={bulkJobsBusy}
 							onClick={() => {
-								if (!editions?.length || fetchAllCovers.isPending) return;
-								setCoversBulkResult(null);
-								fetchAllCovers.mutate(editions);
+								if (fetchAllCovers.isPending) return;
+								fetchAllCovers.mutate({ force: false });
 							}}
 						>
-							{fetchAllCovers.isPending && coversProgress
-								? `Fetching covers… ${coversProgress.current}/${coversProgress.total}`
-								: fetchAllCovers.isPending
-									? 'Fetching covers…'
-									: 'Fetch all covers'}
+							{fetchAllCovers.isPending ? 'Fetching covers…' : 'Fetch covers'}
+						</Button>
+						<Button
+							type="button"
+							variant="secondary"
+							size="sm"
+							disabled={bulkJobsBusy}
+							onClick={() => {
+								if (fetchAllCovers.isPending) return;
+								if (
+									!window.confirm(
+										'Re-fetch every cover from PriceCharting? This can take a long time and re-downloads images even when you already have them.',
+									)
+								) {
+									return;
+								}
+								fetchAllCovers.mutate({ force: true });
+							}}
+						>
+							{fetchAllCovers.isPending
+								? 'Fetching covers…'
+								: 'Re-fetch all covers'}
+						</Button>
+						<Button
+							type="button"
+							variant="danger"
+							size="sm"
+							disabled={bulkJobsBusy}
+							onClick={() => {
+								if (
+									!window.confirm(
+										'Remove all covers? This clears cover data on every edition and deletes downloaded cover files from the server. Use Fetch covers afterward to download them again.',
+									)
+								) {
+									return;
+								}
+								setResetCoversResult(null);
+								resetAllCovers.mutate();
+							}}
+						>
+							{resetAllCovers.isPending
+								? 'Removing covers…'
+								: 'Remove all covers'}
 						</Button>
 					</div>
 
@@ -463,7 +429,7 @@ function Settings() {
 						</p>
 					)}
 
-					{fetchAllCovers.isPending && coversProgress && (
+					{fetchAllCovers.isPending && (
 						<p
 							className={css({
 								fontSize: 'sm',
@@ -472,7 +438,8 @@ function Settings() {
 								mb: '0',
 							})}
 						>
-							Fetching covers… {coversProgress.current}/{coversProgress.total}
+							Running cover job on the server… this may take several minutes. Do
+							not close the tab.
 						</p>
 					)}
 
@@ -489,6 +456,24 @@ function Settings() {
 							<p className={css({ margin: '0', color: 'foregroundMuted' })}>
 								{bulkRefresh.error instanceof Error
 									? bulkRefresh.error.message
+									: 'Unknown error'}
+							</p>
+						</div>
+					)}
+
+					{resetAllCovers.isError && (
+						<div className={errorBoxClass}>
+							<p
+								className={css({
+									margin: '0 0 6px 0',
+									fontWeight: 'semibold',
+								})}
+							>
+								Remove all covers failed.
+							</p>
+							<p className={css({ margin: '0', color: 'foregroundMuted' })}>
+								{resetAllCovers.error instanceof Error
+									? resetAllCovers.error.message
 									: 'Unknown error'}
 							</p>
 						</div>
@@ -552,6 +537,25 @@ function Settings() {
 									)}
 								</ul>
 							)}
+						</div>
+					)}
+
+					{resetCoversResult && !resetAllCovers.isPending && (
+						<div className={resultBoxClass}>
+							<p
+								className={css({
+									margin: '0',
+									color: 'foreground',
+								})}
+							>
+								Covers reset: {resetCoversResult.editionsUpdated}{' '}
+								{resetCoversResult.editionsUpdated === 1
+									? 'edition'
+									: 'editions'}{' '}
+								updated, stored files removed for{' '}
+								{resetCoversResult.productIdsFilesRemoved} PriceCharting product
+								{resetCoversResult.productIdsFilesRemoved === 1 ? '' : 's'}.
+							</p>
 						</div>
 					)}
 

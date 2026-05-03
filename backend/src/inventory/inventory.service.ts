@@ -3,6 +3,7 @@ import {
 	type BulkRefreshMarketResultDto,
 	type FetchAllCoversResultDto,
 	type FetchEditionCoverResponseDto,
+	type ResetAllCoversResultDto,
 	type GameCollectionSummaryDto,
 	coerceCollectionBadgeColor,
 	findBestPriceChartingConsoleIdFromRows,
@@ -1166,6 +1167,41 @@ export class InventoryService {
 			skipped,
 			failed: failures.length,
 			failures,
+		};
+	}
+
+	/**
+	 * Clears cover metadata on every edition (same as nulling coverFetchedAt / coverContentType),
+	 * then removes stored image files for each PriceCharting product id that had a cover recorded.
+	 */
+	async resetAllCovers(): Promise<ResetAllCoversResultDto> {
+		const hadCover = await this.prisma.gameEdition.findMany({
+			where: { coverFetchedAt: { not: null } },
+			select: { priceChartingProductId: true },
+		});
+		const productIds = [
+			...new Set(
+				hadCover
+					.map((e) => e.priceChartingProductId?.trim())
+					.filter((id): id is string => !!id),
+			),
+		];
+
+		const updated = await this.prisma.gameEdition.updateMany({
+			data: { coverFetchedAt: null, coverContentType: null },
+		});
+
+		for (const pcId of productIds) {
+			await this.coverArt.removeCoverFilesForPriceChartingProduct(pcId);
+		}
+
+		this.logger.log(
+			`resetAllCovers: editionsUpdated=${updated.count} productIdsFilesRemoved=${productIds.length}`,
+		);
+
+		return {
+			editionsUpdated: updated.count,
+			productIdsFilesRemoved: productIds.length,
 		};
 	}
 

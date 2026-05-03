@@ -1,6 +1,13 @@
 # Nest API — use for a second Railway service. In the service settings, set
 # “Config as code” file to /backend/railway.toml (or merge these into the UI).
 # Link Railway Postgres so DATABASE_URL is set. Set FRONTEND_URL to your deployed web origin(s).
+#
+# Cover images (CoverArtService) are stored on disk unless COVER_STORAGE_PATH points elsewhere.
+# The container filesystem is ephemeral on each deploy — add a Railway Volume on this service
+# and set COVER_STORAGE_PATH to a path *inside* the volume mount (e.g. mount volume at /data
+# and set COVER_STORAGE_PATH=/data/covers). Railway also sets RAILWAY_VOLUME_MOUNT_PATH at
+# runtime if a volume is attached; you can set COVER_STORAGE_PATH to that path or a subfolder.
+# See https://docs.railway.com/volumes
 [build]
 builder = "RAILPACK"
 buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @gettin-paid/shared build && pnpm --filter @gettin-paid/backend build"

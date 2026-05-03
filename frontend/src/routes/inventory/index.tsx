@@ -241,6 +241,12 @@ function InventoryList() {
 					})}
 				>
 					<Link
+						to="/settings"
+						className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+					>
+						Settings
+					</Link>
+					<Link
 						to="/inventory/bulk-edit"
 						className={buttonVariants({ variant: 'secondary', size: 'sm' })}
 					>
