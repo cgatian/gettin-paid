@@ -229,13 +229,16 @@ export class InventoryService {
 	async listEditions(
 		priceChartingConsoleId?: string,
 		gameCollectionId?: string,
+		includeSoldCopies = false,
 	) {
 		/** Rows: unsold inventory, or every copy assigned to this collection (including sold). */
 		const copyRowsWhere: Prisma.OwnedCopyWhereInput = gameCollectionId
 			? {
 					collectionLinks: { some: { collectionId: gameCollectionId } },
 				}
-			: { soldAt: null };
+			: includeSoldCopies
+				? {}
+				: { soldAt: null };
 		/** Which editions appear: any copy assigned to this collection (sold or unsold) */
 		const where: Prisma.GameEditionWhereInput = {
 			...(priceChartingConsoleId ? { priceChartingConsoleId } : {}),

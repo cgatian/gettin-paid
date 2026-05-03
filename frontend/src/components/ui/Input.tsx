@@ -61,8 +61,8 @@ const selectPopupClass = css({
 	overflowY: 'auto',
 	maxHeight: '240px',
 	minWidth: 'var(--anchor-width)',
-	/** Above Dialog backdrop (100) / panel (101) so options receive clicks. */
-	zIndex: 200,
+	/** Above AG Grid layers, dialog backdrop (100) / panel (101), etc. */
+	zIndex: 1000,
 	py: '1',
 });
 

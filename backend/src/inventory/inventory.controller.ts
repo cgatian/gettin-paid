@@ -109,14 +109,17 @@ export class InventoryController {
 		@Query("console") console?: string,
 		@Query("platform") platformLegacy?: string,
 		@Query("collection") collection?: string,
+		@Query("includeSoldCopies") includeSoldCopiesRaw?: string,
 	) {
+		const includeSoldCopies =
+			includeSoldCopiesRaw === "true" || includeSoldCopiesRaw === "1";
 		const [filter, collectionId] = await Promise.all([
 			this.inventory.resolveConsoleFilterQuery(console, platformLegacy),
 			collection?.trim()
 				? this.inventory.resolveCollectionFilterQuery(collection)
 				: Promise.resolve(undefined),
 		]);
-		return this.inventory.listEditions(filter, collectionId);
+		return this.inventory.listEditions(filter, collectionId, includeSoldCopies);
 	}
 
 	@Post("editions/refresh-all-market")

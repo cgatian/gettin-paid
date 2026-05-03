@@ -17,6 +17,8 @@
     "start": "node .output/server/index.mjs"
   },
   "dependencies": {
+    "ag-grid-community": "34.1.2",
+    "ag-grid-react": "34.1.2",
     "@base-ui/react": "1.4.1",
     "@ericblade/quagga2": "1.12.1",
     "@gettin-paid/shared": "workspace:*",

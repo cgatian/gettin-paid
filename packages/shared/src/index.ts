@@ -92,8 +92,7 @@ export const COLLECTION_BADGE_COLORS = [
 	'#78716C',
 ] as const;
 
-export type CollectionBadgeColor =
-	(typeof COLLECTION_BADGE_COLORS)[number];
+export type CollectionBadgeColor = (typeof COLLECTION_BADGE_COLORS)[number];
 
 const COLLECTION_BADGE_COLOR_SET = new Set<string>(
 	COLLECTION_BADGE_COLORS as readonly string[],
@@ -125,7 +124,8 @@ export type GameCollectionSummaryDto = {
 };
 
 /**
- * One copy row on GET /editions lists. Main inventory is unsold only (`soldAt` null).
+ * One copy row on GET /editions lists. Library mode is unsold copies only (`soldAt` null)
+ * unless the request sets `includeSoldCopies=true`, in which case sold copies are included too.
  * Collection-scoped lists may include sold copies still tagged with that collection.
  */
 export type EditionListActiveCopyDto = {
@@ -156,7 +156,10 @@ export type GameEditionDto = {
 	/** ISO timestamp when cover scrape succeeded; null if none */
 	coverFetchedAt: string | null;
 	copyCount?: number;
-	/** Set on GET /editions: per-row copies (unsold only except collection filter may include sold) */
+	/**
+	 * Set on GET /editions: per-row copies (unsold only by default; all copies when
+	 * `includeSoldCopies=true`; collection filter may include sold).
+	 */
 	activeCopies?: EditionListActiveCopyDto[];
 	/**
 	 * Distinct collections any copy of this edition belongs to (sold or unsold).

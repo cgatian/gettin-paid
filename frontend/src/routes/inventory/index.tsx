@@ -241,6 +241,12 @@ function InventoryList() {
 					})}
 				>
 					<Link
+						to="/inventory/bulk-edit"
+						className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+					>
+						Bulk edit
+					</Link>
+					<Link
 						to="/inventory/add"
 						className={buttonVariants({ variant: 'primary', size: 'sm' })}
 					>
@@ -250,7 +256,9 @@ function InventoryList() {
 			</div>
 
 			{dashboardQ.isLoading && (
-				<p className={css({ color: 'foregroundMuted', fontSize: 'sm', mb: '4' })}>
+				<p
+					className={css({ color: 'foregroundMuted', fontSize: 'sm', mb: '4' })}
+				>
 					Loading metrics…
 				</p>
 			)}
@@ -442,8 +450,8 @@ function InventoryList() {
 					<div className={emptyClass}>
 						<p className={emptyTitleClass}>No active inventory on this view.</p>
 						<p className={css({ fontSize: 'sm', mb: '3' })}>
-							All matching games are sold out. Turn on <strong>Include sold</strong>{' '}
-							to list those titles.
+							All matching games are sold out. Turn on{' '}
+							<strong>Include sold</strong> to list those titles.
 						</p>
 					</div>
 				)}

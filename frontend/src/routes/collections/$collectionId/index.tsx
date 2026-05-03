@@ -1,6 +1,13 @@
-import type { DashboardSummaryDto, GameCollectionSummaryDto, GameEditionDto } from '@gettin-paid/shared';
-import { coerceCollectionBadgeColor, DEFAULT_COLLECTION_BADGE_COLOR } from '@gettin-paid/shared';
 import { Dialog } from '@base-ui/react';
+import type {
+	DashboardSummaryDto,
+	GameCollectionSummaryDto,
+	GameEditionDto,
+} from '@gettin-paid/shared';
+import {
+	coerceCollectionBadgeColor,
+	DEFAULT_COLLECTION_BADGE_COLOR,
+} from '@gettin-paid/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { Settings } from 'lucide-react';
@@ -161,8 +168,12 @@ function CollectionDetailPage() {
 			),
 		onSuccess: () => {
 			setSettingsOpen(false);
-			void queryClient.invalidateQueries({ queryKey: ['collection', collectionId] });
-			void queryClient.invalidateQueries({ queryKey: ['collection-summary', collectionId] });
+			void queryClient.invalidateQueries({
+				queryKey: ['collection', collectionId],
+			});
+			void queryClient.invalidateQueries({
+				queryKey: ['collection-summary', collectionId],
+			});
 			void queryClient.invalidateQueries({ queryKey: ['collections'] });
 			void queryClient.invalidateQueries({ queryKey: ['editions'] });
 		},
@@ -205,6 +216,13 @@ function CollectionDetailPage() {
 						<Settings size={18} strokeWidth={1.75} aria-hidden />
 					</Button>
 					<Link
+						to="/collections/$collectionId/bulk-edit"
+						params={{ collectionId }}
+						className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+					>
+						Bulk edit
+					</Link>
+					<Link
 						to="/collections"
 						className={buttonVariants({ variant: 'ghost', size: 'sm' })}
 					>
@@ -214,7 +232,9 @@ function CollectionDetailPage() {
 			</div>
 
 			{summaryQ.isLoading && (
-				<p className={css({ color: 'foregroundMuted', fontSize: 'sm', mb: '4' })}>
+				<p
+					className={css({ color: 'foregroundMuted', fontSize: 'sm', mb: '4' })}
+				>
 					Loading metrics…
 				</p>
 			)}
@@ -240,7 +260,11 @@ function CollectionDetailPage() {
 			<div className={searchBlockClass}>
 				<label
 					htmlFor="coll-detail-filter"
-					className={css({ fontSize: 'sm', color: 'foregroundMuted', flexShrink: '0' })}
+					className={css({
+						fontSize: 'sm',
+						color: 'foregroundMuted',
+						flexShrink: '0',
+					})}
 				>
 					Search:
 				</label>
@@ -268,11 +292,13 @@ function CollectionDetailPage() {
 				</p>
 			)}
 
-			{editionsQ.data && editionsQ.data.length === 0 && !editionsQ.isLoading && (
-				<p className={css({ color: 'foregroundMuted', fontSize: 'sm' })}>
-					No games in this collection yet (no copies are assigned to it).
-				</p>
-			)}
+			{editionsQ.data &&
+				editionsQ.data.length === 0 &&
+				!editionsQ.isLoading && (
+					<p className={css({ color: 'foregroundMuted', fontSize: 'sm' })}>
+						No games in this collection yet (no copies are assigned to it).
+					</p>
+				)}
 
 			{editionsQ.data &&
 				editionsQ.data.length > 0 &&
@@ -293,7 +319,9 @@ function CollectionDetailPage() {
 				<Dialog.Portal>
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup className={modalClass}>
-						<Dialog.Title className={modalTitleClass}>Collection settings</Dialog.Title>
+						<Dialog.Title className={modalTitleClass}>
+							Collection settings
+						</Dialog.Title>
 						<form
 							onSubmit={(ev) => {
 								ev.preventDefault();
@@ -343,7 +371,9 @@ function CollectionDetailPage() {
 								</div>
 							</Field>
 							{patchMut.isError && (
-								<p className={css({ color: 'danger', fontSize: 'sm', mt: '2' })}>
+								<p
+									className={css({ color: 'danger', fontSize: 'sm', mt: '2' })}
+								>
 									{patchMut.error instanceof Error
 										? patchMut.error.message
 										: 'Save failed'}
@@ -366,7 +396,11 @@ function CollectionDetailPage() {
 								>
 									Cancel
 								</Button>
-								<Button type="submit" variant="primary" disabled={patchMut.isPending}>
+								<Button
+									type="submit"
+									variant="primary"
+									disabled={patchMut.isPending}
+								>
 									{patchMut.isPending ? 'Saving…' : 'Save'}
 								</Button>
 							</div>
@@ -379,10 +413,18 @@ function CollectionDetailPage() {
 				<Dialog.Portal>
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup className={modalClass}>
-						<Dialog.Title className={modalTitleClass}>Delete this collection?</Dialog.Title>
-						<p className={css({ fontSize: 'sm', color: 'foregroundMuted', m: '0' })}>
-							Copies remain in your inventory; they are only unassigned from this
-							collection.
+						<Dialog.Title className={modalTitleClass}>
+							Delete this collection?
+						</Dialog.Title>
+						<p
+							className={css({
+								fontSize: 'sm',
+								color: 'foregroundMuted',
+								m: '0',
+							})}
+						>
+							Copies remain in your inventory; they are only unassigned from
+							this collection.
 						</p>
 						<div className={footerRowClass}>
 							<Button

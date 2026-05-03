@@ -15,10 +15,12 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InventoryIndexRouteImport } from './routes/inventory/index'
 import { Route as CollectionsIndexRouteImport } from './routes/collections/index'
+import { Route as InventoryBulkEditRouteImport } from './routes/inventory/bulk-edit'
 import { Route as InventoryAddRouteImport } from './routes/inventory/add'
 import { Route as InventoryEditionIdRouteImport } from './routes/inventory/$editionId'
 import { Route as CollectionsCollectionIdRouteImport } from './routes/collections/$collectionId'
 import { Route as CollectionsCollectionIdIndexRouteImport } from './routes/collections/$collectionId/index'
+import { Route as CollectionsCollectionIdBulkEditRouteImport } from './routes/collections/$collectionId/bulk-edit'
 import { Route as CollectionsCollectionIdGameEditionEditionIdRouteImport } from './routes/collections/$collectionId/gameEdition/$editionId'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -51,6 +53,11 @@ const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
   path: '/collections/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InventoryBulkEditRoute = InventoryBulkEditRouteImport.update({
+  id: '/inventory/bulk-edit',
+  path: '/inventory/bulk-edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InventoryAddRoute = InventoryAddRouteImport.update({
   id: '/inventory/add',
   path: '/inventory/add',
@@ -72,6 +79,12 @@ const CollectionsCollectionIdIndexRoute =
     path: '/',
     getParentRoute: () => CollectionsCollectionIdRoute,
   } as any)
+const CollectionsCollectionIdBulkEditRoute =
+  CollectionsCollectionIdBulkEditRouteImport.update({
+    id: '/bulk-edit',
+    path: '/bulk-edit',
+    getParentRoute: () => CollectionsCollectionIdRoute,
+  } as any)
 const CollectionsCollectionIdGameEditionEditionIdRoute =
   CollectionsCollectionIdGameEditionEditionIdRouteImport.update({
     id: '/gameEdition/$editionId',
@@ -87,8 +100,10 @@ export interface FileRoutesByFullPath {
   '/collections/$collectionId': typeof CollectionsCollectionIdRouteWithChildren
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
+  '/inventory/bulk-edit': typeof InventoryBulkEditRoute
   '/collections/': typeof CollectionsIndexRoute
   '/inventory/': typeof InventoryIndexRoute
+  '/collections/$collectionId/bulk-edit': typeof CollectionsCollectionIdBulkEditRoute
   '/collections/$collectionId/': typeof CollectionsCollectionIdIndexRoute
   '/collections/$collectionId/gameEdition/$editionId': typeof CollectionsCollectionIdGameEditionEditionIdRoute
 }
@@ -99,8 +114,10 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
+  '/inventory/bulk-edit': typeof InventoryBulkEditRoute
   '/collections': typeof CollectionsIndexRoute
   '/inventory': typeof InventoryIndexRoute
+  '/collections/$collectionId/bulk-edit': typeof CollectionsCollectionIdBulkEditRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdIndexRoute
   '/collections/$collectionId/gameEdition/$editionId': typeof CollectionsCollectionIdGameEditionEditionIdRoute
 }
@@ -113,8 +130,10 @@ export interface FileRoutesById {
   '/collections/$collectionId': typeof CollectionsCollectionIdRouteWithChildren
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
+  '/inventory/bulk-edit': typeof InventoryBulkEditRoute
   '/collections/': typeof CollectionsIndexRoute
   '/inventory/': typeof InventoryIndexRoute
+  '/collections/$collectionId/bulk-edit': typeof CollectionsCollectionIdBulkEditRoute
   '/collections/$collectionId/': typeof CollectionsCollectionIdIndexRoute
   '/collections/$collectionId/gameEdition/$editionId': typeof CollectionsCollectionIdGameEditionEditionIdRoute
 }
@@ -128,8 +147,10 @@ export interface FileRouteTypes {
     | '/collections/$collectionId'
     | '/inventory/$editionId'
     | '/inventory/add'
+    | '/inventory/bulk-edit'
     | '/collections/'
     | '/inventory/'
+    | '/collections/$collectionId/bulk-edit'
     | '/collections/$collectionId/'
     | '/collections/$collectionId/gameEdition/$editionId'
   fileRoutesByTo: FileRoutesByTo
@@ -140,8 +161,10 @@ export interface FileRouteTypes {
     | '/settings'
     | '/inventory/$editionId'
     | '/inventory/add'
+    | '/inventory/bulk-edit'
     | '/collections'
     | '/inventory'
+    | '/collections/$collectionId/bulk-edit'
     | '/collections/$collectionId'
     | '/collections/$collectionId/gameEdition/$editionId'
   id:
@@ -153,8 +176,10 @@ export interface FileRouteTypes {
     | '/collections/$collectionId'
     | '/inventory/$editionId'
     | '/inventory/add'
+    | '/inventory/bulk-edit'
     | '/collections/'
     | '/inventory/'
+    | '/collections/$collectionId/bulk-edit'
     | '/collections/$collectionId/'
     | '/collections/$collectionId/gameEdition/$editionId'
   fileRoutesById: FileRoutesById
@@ -167,6 +192,7 @@ export interface RootRouteChildren {
   CollectionsCollectionIdRoute: typeof CollectionsCollectionIdRouteWithChildren
   InventoryEditionIdRoute: typeof InventoryEditionIdRoute
   InventoryAddRoute: typeof InventoryAddRoute
+  InventoryBulkEditRoute: typeof InventoryBulkEditRoute
   CollectionsIndexRoute: typeof CollectionsIndexRoute
   InventoryIndexRoute: typeof InventoryIndexRoute
 }
@@ -215,6 +241,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inventory/bulk-edit': {
+      id: '/inventory/bulk-edit'
+      path: '/inventory/bulk-edit'
+      fullPath: '/inventory/bulk-edit'
+      preLoaderRoute: typeof InventoryBulkEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inventory/add': {
       id: '/inventory/add'
       path: '/inventory/add'
@@ -243,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionsCollectionIdIndexRouteImport
       parentRoute: typeof CollectionsCollectionIdRoute
     }
+    '/collections/$collectionId/bulk-edit': {
+      id: '/collections/$collectionId/bulk-edit'
+      path: '/bulk-edit'
+      fullPath: '/collections/$collectionId/bulk-edit'
+      preLoaderRoute: typeof CollectionsCollectionIdBulkEditRouteImport
+      parentRoute: typeof CollectionsCollectionIdRoute
+    }
     '/collections/$collectionId/gameEdition/$editionId': {
       id: '/collections/$collectionId/gameEdition/$editionId'
       path: '/gameEdition/$editionId'
@@ -254,12 +294,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface CollectionsCollectionIdRouteChildren {
+  CollectionsCollectionIdBulkEditRoute: typeof CollectionsCollectionIdBulkEditRoute
   CollectionsCollectionIdIndexRoute: typeof CollectionsCollectionIdIndexRoute
   CollectionsCollectionIdGameEditionEditionIdRoute: typeof CollectionsCollectionIdGameEditionEditionIdRoute
 }
 
 const CollectionsCollectionIdRouteChildren: CollectionsCollectionIdRouteChildren =
   {
+    CollectionsCollectionIdBulkEditRoute: CollectionsCollectionIdBulkEditRoute,
     CollectionsCollectionIdIndexRoute: CollectionsCollectionIdIndexRoute,
     CollectionsCollectionIdGameEditionEditionIdRoute:
       CollectionsCollectionIdGameEditionEditionIdRoute,
@@ -278,6 +320,7 @@ const rootRouteChildren: RootRouteChildren = {
   CollectionsCollectionIdRoute: CollectionsCollectionIdRouteWithChildren,
   InventoryEditionIdRoute: InventoryEditionIdRoute,
   InventoryAddRoute: InventoryAddRoute,
+  InventoryBulkEditRoute: InventoryBulkEditRoute,
   CollectionsIndexRoute: CollectionsIndexRoute,
   InventoryIndexRoute: InventoryIndexRoute,
 }

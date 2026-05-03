@@ -1,6 +1,6 @@
+import { Dialog } from '@base-ui/react';
 import type { GameCollectionSummaryDto } from '@gettin-paid/shared';
 import { DEFAULT_COLLECTION_BADGE_COLOR } from '@gettin-paid/shared';
-import { Dialog } from '@base-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Plus, Trash2 } from 'lucide-react';
@@ -37,7 +37,11 @@ const titleClass = css({
 
 const gridClass = css({
 	display: 'grid',
-	gridTemplateColumns: { base: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+	gridTemplateColumns: {
+		base: '1fr',
+		md: 'repeat(2, 1fr)',
+		lg: 'repeat(3, 1fr)',
+	},
 	gap: '4',
 });
 
@@ -83,9 +87,8 @@ const footerRowClass = css({
 function CollectionsHubPage() {
 	const queryClient = useQueryClient();
 	const [createOpen, setCreateOpen] = useState(false);
-	const [deleteTarget, setDeleteTarget] = useState<GameCollectionSummaryDto | null>(
-		null,
-	);
+	const [deleteTarget, setDeleteTarget] =
+		useState<GameCollectionSummaryDto | null>(null);
 	const [newTitle, setNewTitle] = useState('');
 	const [newDescription, setNewDescription] = useState('');
 	const [newColor, setNewColor] = useState(DEFAULT_COLLECTION_BADGE_COLOR);
@@ -134,7 +137,12 @@ function CollectionsHubPage() {
 					size="sm"
 					onClick={() => setCreateOpen(true)}
 				>
-					<Plus size={16} strokeWidth={2} aria-hidden style={{ marginRight: 6 }} />
+					<Plus
+						size={16}
+						strokeWidth={2}
+						aria-hidden
+						style={{ marginRight: 6 }}
+					/>
 					New collection
 				</Button>
 			</div>
@@ -146,7 +154,9 @@ function CollectionsHubPage() {
 			)}
 			{q.isError && (
 				<p className={css({ color: 'danger', fontSize: 'sm' })}>
-					{q.error instanceof Error ? q.error.message : 'Could not load collections'}
+					{q.error instanceof Error
+						? q.error.message
+						: 'Could not load collections'}
 				</p>
 			)}
 
@@ -155,14 +165,21 @@ function CollectionsHubPage() {
 					<p className={css({ color: 'foregroundMuted', mb: '4' })}>
 						No collections yet. Create one to group copies from your inventory.
 					</p>
-					<Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
+					<Button
+						type="button"
+						variant="primary"
+						onClick={() => setCreateOpen(true)}
+					>
 						Create collection
 					</Button>
 				</Card>
 			)}
 
 			{q.data && q.data.length > 0 && (
-				<ul className={gridClass} style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+				<ul
+					className={gridClass}
+					style={{ listStyle: 'none', padding: 0, margin: 0 }}
+				>
 					{q.data.map((c) => (
 						<li key={c.id}>
 							<Card
@@ -230,7 +247,10 @@ function CollectionsHubPage() {
 										<Link
 											to="/collections/$collectionId"
 											params={{ collectionId: c.id }}
-											className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+											className={buttonVariants({
+												variant: 'secondary',
+												size: 'sm',
+											})}
 										>
 											Open
 										</Link>
@@ -255,7 +275,9 @@ function CollectionsHubPage() {
 				<Dialog.Portal>
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup className={modalClass}>
-						<Dialog.Title className={modalTitleClass}>New collection</Dialog.Title>
+						<Dialog.Title className={modalTitleClass}>
+							New collection
+						</Dialog.Title>
 						<form
 							onSubmit={(ev) => {
 								ev.preventDefault();
@@ -306,7 +328,9 @@ function CollectionsHubPage() {
 								</div>
 							</Field>
 							{createMut.isError && (
-								<p className={css({ color: 'danger', fontSize: 'sm', mt: '2' })}>
+								<p
+									className={css({ color: 'danger', fontSize: 'sm', mt: '2' })}
+								>
 									{createMut.error instanceof Error
 										? createMut.error.message
 										: 'Create failed'}
@@ -321,7 +345,11 @@ function CollectionsHubPage() {
 								>
 									Cancel
 								</Button>
-								<Button type="submit" variant="primary" disabled={createMut.isPending}>
+								<Button
+									type="submit"
+									variant="primary"
+									disabled={createMut.isPending}
+								>
 									{createMut.isPending ? 'Creating…' : 'Create'}
 								</Button>
 							</div>
@@ -339,10 +367,19 @@ function CollectionsHubPage() {
 				<Dialog.Portal>
 					<Dialog.Backdrop className={overlayClass} />
 					<Dialog.Popup className={modalClass}>
-						<Dialog.Title className={modalTitleClass}>Delete collection?</Dialog.Title>
-						<p className={css({ fontSize: 'sm', color: 'foregroundMuted', m: '0' })}>
-							<strong>{deleteTarget?.title}</strong> will be removed. Copies stay in your
-							inventory; they are only unassigned from this collection.
+						<Dialog.Title className={modalTitleClass}>
+							Delete collection?
+						</Dialog.Title>
+						<p
+							className={css({
+								fontSize: 'sm',
+								color: 'foregroundMuted',
+								m: '0',
+							})}
+						>
+							<strong>{deleteTarget?.title}</strong> will be removed. Copies
+							stay in your inventory; they are only unassigned from this
+							collection.
 						</p>
 						<div className={footerRowClass}>
 							<Button
