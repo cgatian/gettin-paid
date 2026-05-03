@@ -2,6 +2,7 @@ import {
 	CopyClassification,
 	type EditionDetailDto,
 	findBestPriceChartingConsoleIdFromApiConsoleName,
+	type GameCollectionSummaryDto,
 	POPULAR_PRICECHARTING_CONSOLE_IDS,
 	type PriceChartingPricingPreviewDto,
 	type PriceChartingProductCoverPreviewDto,
@@ -20,7 +21,7 @@ import {
 	cardHeader,
 	formGroupClass,
 } from '#/components/ui/Card';
-import { Field, Input, Select } from '#/components/ui/Input';
+import { Field, Input, inputClass, Select } from '#/components/ui/Input';
 import { apiFetch } from '#/lib/api';
 import { formatPcCents } from '#/lib/money';
 
@@ -264,6 +265,12 @@ function AddGame() {
 			),
 		[platformsQuery.data],
 	);
+
+	const collectionsQuery = useQuery({
+		queryKey: ['collections'],
+		queryFn: () => apiFetch<GameCollectionSummaryDto[]>('/collections'),
+		staleTime: 60_000,
+	});
 	const [upc, setUpc] = useState('');
 	const [scanError, setScanError] = useState<string | null>(null);
 	const [isScanning, setIsScanning] = useState(false);
@@ -282,33 +289,57 @@ function AddGame() {
 			// fails (e.g. canvas setup error, image load error). Race against a
 			// timeout so the UI never gets permanently stuck.
 			const SCAN_TIMEOUT_MS = 15_000;
-			const result = await Promise.race([
-				Quagga.decodeSingle({
-					src: url,
-					locate: true,
-					decoder: {
-						readers: [
-							'ean_reader',
-							'ean_8_reader',
-							'upc_reader',
-							'upc_e_reader',
-							'code_128_reader',
-						],
-					},
-					locator: { patchSize: 'large', halfSample: false },
-				}),
-				new Promise<never>((_, reject) =>
-					setTimeout(() => reject(new Error('scan_timeout')), SCAN_TIMEOUT_MS),
-				),
-			]);
+			const READERS = [
+				'ean_reader',
+				'ean_8_reader',
+				'upc_reader',
+				'upc_e_reader',
+				'code_128_reader',
+			] as const;
+
+			async function attemptDecode(
+				patchSize: string,
+				size: number,
+				halfSample: boolean,
+			) {
+				return Promise.race([
+					Quagga.decodeSingle({
+						src: url,
+						locate: true,
+						// decodeSingle defaults to 800px; phone photos need higher res to keep barcodes detectable
+						inputStream: { size },
+						decoder: { readers: [...READERS] },
+						locator: { patchSize, halfSample },
+					}),
+					new Promise<never>((_, reject) =>
+						setTimeout(
+							() => reject(new Error('scan_timeout')),
+							SCAN_TIMEOUT_MS,
+						),
+					),
+				]);
+			}
+
+			// First pass: good general-purpose settings
+			let result = await attemptDecode('medium', 1600, true);
+			// Second pass: denser grid + full resolution for blurry/soft-focus images
+			if (!result?.codeResult?.code) {
+				result = await attemptDecode('x-small', 2400, false);
+			}
+
 			const code = result?.codeResult?.code;
 			if (code) setUpc(code);
-			else setScanError('No barcode found — try a clearer photo.');
+			else
+				setScanError(
+					'No barcode found — make sure the barcode is in focus and well-lit, then try again.',
+				);
 		} catch (err) {
 			if (err instanceof Error && err.message === 'scan_timeout') {
 				setScanError('Scan timed out — try a clearer photo or enter manually.');
 			} else {
-				setScanError('No barcode found — try a clearer photo.');
+				setScanError(
+					'No barcode found — make sure the barcode is in focus and well-lit, then try again.',
+				);
 			}
 		} finally {
 			URL.revokeObjectURL(url);
@@ -359,6 +390,7 @@ function AddGame() {
 	const [publisher, setPublisher] = useState('');
 	const [copyClassification, setCopyClassification] =
 		useState<CopyClassificationTag>(CopyClassification.CIB);
+	const [copyCollectionId, setCopyCollectionId] = useState('');
 	const [copyNotes, setCopyNotes] = useState('');
 	const [purchaseAmount, setPurchaseAmount] = useState('');
 	const [offerAmount, setOfferAmount] = useState('');
@@ -468,6 +500,7 @@ function AddGame() {
 		setPriceChartingConsoleId(POPULAR_PRICECHARTING_CONSOLE_IDS[0] ?? 'G8');
 		setPublisher('');
 		setCopyClassification(CopyClassification.CIB);
+		setCopyCollectionId('');
 		setCopyNotes('');
 		setPurchaseAmount('');
 		setOfferAmount('');
@@ -497,6 +530,9 @@ function AddGame() {
 					syncPriceCharting: true,
 					initialCopyClassification: copyClassification,
 					initialCopyNotes: copyNotes.trim() || undefined,
+					...(copyCollectionId.trim()
+						? { initialCopyCollectionId: copyCollectionId.trim() }
+						: {}),
 					...(purchaseAmount.trim()
 						? { initialPurchaseAmount: purchaseAmount.trim() }
 						: {}),
@@ -510,8 +546,16 @@ function AddGame() {
 			});
 		},
 		onSuccess: (edition, variables) => {
-			void queryClient.invalidateQueries({ queryKey: ['editions'] });
-			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['editions'],
+				refetchType: 'all',
+			});
+			void queryClient.invalidateQueries({ queryKey: ['entire-collection'] });
+			void queryClient.invalidateQueries({ queryKey: ['collections'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['collection-summary'],
+				refetchType: 'all',
+			});
 			if (variables?.stayOnPage) {
 				resetAddForm();
 				return;
@@ -531,7 +575,7 @@ function AddGame() {
 			<div className={addPageScrollClass}>
 				<div className={addPageScrollInnerClass}>
 					<Link to="/inventory" className={backLinkClass}>
-						← Inventory
+						← Games
 					</Link>
 
 					<h1 className={pageTitleClass}>Add a game</h1>
@@ -930,6 +974,38 @@ function AddGame() {
 												label: x.replace(/_/g, ' '),
 											}))}
 										/>
+									</Field>
+
+									<Field
+										label={
+											<>
+												Collection{' '}
+												<span
+													className={css({
+														color: 'foregroundMuted',
+														fontWeight: 'normal',
+													})}
+												>
+													(optional)
+												</span>
+											</>
+										}
+										htmlFor="add-copy-collection"
+									>
+										<select
+											id="add-copy-collection"
+											className={inputClass}
+											value={copyCollectionId}
+											onChange={(e) => setCopyCollectionId(e.target.value)}
+											disabled={collectionsQuery.isLoading}
+										>
+											<option value="">None</option>
+											{(collectionsQuery.data ?? []).map((col) => (
+												<option key={col.id} value={col.id}>
+													{col.title}
+												</option>
+											))}
+										</select>
 									</Field>
 
 									<Field label="Notes (optional)" htmlFor="copy-notes">

@@ -159,7 +159,7 @@ function Home() {
 						to="/inventory"
 						className={buttonVariants({ variant: 'primary', size: 'md' })}
 					>
-						Open inventory
+						Browse games
 					</Link>
 					<Link
 						to="/inventory/add"

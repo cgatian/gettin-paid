@@ -6,6 +6,7 @@ import {
 	IsNumberString,
 	IsOptional,
 	IsString,
+	IsUUID,
 	Matches,
 	MaxLength,
 	MinLength,
@@ -51,6 +52,16 @@ export class CreateEditionDto {
 	@IsString()
 	@MaxLength(2000)
 	initialCopyNotes?: string | null;
+
+	/** Optional shelf collection for the first `OwnedCopy` created with this edition. */
+	@IsOptional()
+	@ValidateIf(
+		(o: CreateEditionDto) =>
+			o.initialCopyCollectionId != null &&
+			String(o.initialCopyCollectionId).trim() !== "",
+	)
+	@IsUUID("4")
+	initialCopyCollectionId?: string | null;
 
 	@IsOptional()
 	@IsNumberString()

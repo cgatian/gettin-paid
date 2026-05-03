@@ -3,6 +3,7 @@ import {
 	type BulkRefreshMarketResultDto,
 	type FetchAllCoversResultDto,
 	type FetchEditionCoverResponseDto,
+	coerceCollectionBadgeColor,
 	findBestPriceChartingConsoleIdFromRows,
 	type DashboardSummaryDto,
 	type PriceChartingPricingPreviewDto,
@@ -33,8 +34,10 @@ import { pickBestProduct } from "../oneoff/pick-product";
 import { PriceChartingService } from "../pricecharting/pricecharting.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type { Request } from "express";
+import type { CreateCollectionDto } from "./dto/create-collection.dto";
 import type { CreateCopyDto } from "./dto/create-copy.dto";
 import type { CreateEditionDto } from "./dto/create-edition.dto";
+import type { PatchCollectionDto } from "./dto/patch-collection.dto";
 import type { PatchCopyDto } from "./dto/patch-copy.dto";
 import type { PatchEditionDto } from "./dto/patch-edition.dto";
 
@@ -88,6 +91,23 @@ export class InventoryService {
 			select: { id: true },
 		});
 		return row?.id;
+	}
+
+	/** Optional collection filter; must be a UUID of an existing GameCollection */
+	async resolveCollectionFilterQuery(
+		collectionParam?: string,
+	): Promise<string | undefined> {
+		const raw = collectionParam?.trim();
+		if (!raw) return undefined;
+		if (!EDITION_ID_UUID.test(raw)) {
+			throw new BadRequestException("Invalid collection id");
+		}
+		const row = await this.prisma.gameCollection.findUnique({
+			where: { id: raw },
+			select: { id: true },
+		});
+		if (!row) throw new BadRequestException("Collection not found");
+		return row.id;
 	}
 
 	/** Live search against PriceCharting GET /api/products (max ~20 hits); optional console scopes results */
@@ -205,10 +225,21 @@ export class InventoryService {
 		};
 	}
 
-	async listEditions(priceChartingConsoleId?: string) {
-		const where = priceChartingConsoleId
-			? { priceChartingConsoleId }
-			: {};
+	async listEditions(
+		priceChartingConsoleId?: string,
+		gameCollectionId?: string,
+	) {
+		/** Rows: unsold inventory, or every copy assigned to this collection (including sold). */
+		const copyRowsWhere: Prisma.OwnedCopyWhereInput = gameCollectionId
+			? { collectionId: gameCollectionId }
+			: { soldAt: null };
+		/** Which editions appear: any copy assigned to this collection (sold or unsold) */
+		const where: Prisma.GameEditionWhereInput = {
+			...(priceChartingConsoleId ? { priceChartingConsoleId } : {}),
+			...(gameCollectionId
+				? { copies: { some: { collectionId: gameCollectionId } } }
+				: {}),
+		};
 		const editions = await this.prisma.gameEdition.findMany({
 			where,
 			orderBy: { title: "asc" },
@@ -217,13 +248,22 @@ export class InventoryService {
 				priceChartingConsole: { select: { name: true } },
 				snapshot: true,
 				copies: {
-					where: { soldAt: null },
+					where: copyRowsWhere,
 					orderBy: { id: "asc" },
 					select: {
 						id: true,
 						copyClassification: true,
 						offerAmount: true,
 						offerCurrency: true,
+						soldAt: true,
+						collection: {
+							select: {
+								id: true,
+								title: true,
+								description: true,
+								badgeColor: true,
+							},
+						},
 					},
 				},
 			},
@@ -247,6 +287,8 @@ export class InventoryService {
 					: null,
 				offerAmount: decStr(c.offerAmount),
 				offerCurrency: c.offerCurrency,
+				collection: this.collectionToSummary(c.collection),
+				soldAt: c.soldAt?.toISOString() ?? null,
 			}));
 			return { ...base, activeCopies };
 		});
@@ -257,17 +299,54 @@ export class InventoryService {
 	 * PriceCharting snapshot and each copy’s classification.
 	 */
 	async dashboardSummary(): Promise<DashboardSummaryDto> {
-		const [editionRows, activeCopies, editionCount] = await Promise.all([
-			this.prisma.gameEdition.findMany({
-				select: { priceChartingConsoleId: true },
-			}),
+		return this.buildDashboardSummary(undefined);
+	}
+
+	async collectionSummary(collectionId: string): Promise<DashboardSummaryDto> {
+		await this.ensureCollection(collectionId);
+		return this.buildDashboardSummary(collectionId);
+	}
+
+	private async buildDashboardSummary(
+		gameCollectionId: string | undefined,
+	): Promise<DashboardSummaryDto> {
+		/** Library: unsold only. Collection shelf: every copy tagged to the collection (sold or not) so FMV matches the list. */
+		const copyWhere: Prisma.OwnedCopyWhereInput = gameCollectionId
+			? { collectionId: gameCollectionId }
+			: { soldAt: null };
+
+		const soldWhere: Prisma.OwnedCopyWhereInput = {
+			soldAt: { not: null },
+			...(gameCollectionId ? { collectionId: gameCollectionId } : {}),
+		};
+
+		const [copiesForMetrics, soldRows] = await Promise.all([
 			this.prisma.ownedCopy.findMany({
-				where: { soldAt: null },
+				where: copyWhere,
 				include: {
 					edition: { include: { snapshot: true } },
 				},
 			}),
-			this.prisma.gameEdition.count(),
+			this.prisma.ownedCopy.findMany({
+				where: soldWhere,
+				select: { soldAmount: true, soldCurrency: true },
+			}),
+		]);
+
+		/** Match listEditions: editions with any copy in this collection. */
+		const editionWhere: Prisma.GameEditionWhereInput | undefined =
+			gameCollectionId
+				? { copies: { some: { collectionId: gameCollectionId } } }
+				: undefined;
+
+		const [editionRows, editionCount] = await Promise.all([
+			this.prisma.gameEdition.findMany({
+				where: editionWhere,
+				select: { priceChartingConsoleId: true },
+			}),
+			this.prisma.gameEdition.count({
+				where: editionWhere ?? {},
+			}),
 		]);
 
 		const countByConsole = new Map<string | null, number>();
@@ -302,8 +381,8 @@ export class InventoryService {
 		let unpricedCopyCount = 0;
 		let proposedTotalUsdCents = 0;
 		let proposedOfferCopyCount = 0;
-		for (const c of activeCopies) {
-			if (c.offerAmount != null) {
+		for (const c of copiesForMetrics) {
+			if (c.soldAt == null && c.offerAmount != null) {
 				// Empty string is stored for some rows; treat like missing currency → USD
 				const cur = (c.offerCurrency?.trim() || "USD")
 					.toUpperCase()
@@ -344,23 +423,136 @@ export class InventoryService {
 			valuedCopyCount++;
 		}
 
+		const unsoldInScope = copiesForMetrics.filter((c) => c.soldAt == null).length;
+
+		let soldTotalUsdCents = 0;
+		let soldCopyCount = 0;
+		for (const c of soldRows) {
+			if (c.soldAmount == null) continue;
+			const cur = (c.soldCurrency?.trim() || "USD")
+				.toUpperCase()
+				.slice(0, 3);
+			if (cur !== "USD") continue;
+			const dollars =
+				typeof c.soldAmount === "object" &&
+				c.soldAmount !== null &&
+				"toNumber" in c.soldAmount
+					? (c.soldAmount as Prisma.Decimal).toNumber()
+					: Number(c.soldAmount);
+			if (!Number.isFinite(dollars)) continue;
+			soldTotalUsdCents += Math.round(dollars * 100);
+			soldCopyCount++;
+		}
+
 		return {
 			systems,
 			totalValueCents,
 			valuedCopyCount,
 			unpricedCopyCount,
-			activeCopyCount: activeCopies.length,
+			/** Unsold copies in scope (library = all rows; collection = unsold tagged to shelf). */
+			activeCopyCount: gameCollectionId ? unsoldInScope : copiesForMetrics.length,
 			editionCount,
 			proposedTotalUsdCents,
 			proposedOfferCopyCount,
+			soldTotalUsdCents,
+			soldCopyCount,
 		};
+	}
+
+	async listCollections() {
+		const rows = await this.prisma.gameCollection.findMany({
+			orderBy: { title: "asc" },
+			select: {
+				id: true,
+				title: true,
+				description: true,
+				badgeColor: true,
+			},
+		});
+		return rows.map((r) => this.collectionToSummary(r)!);
+	}
+
+	async createCollection(dto: CreateCollectionDto) {
+		const badge = coerceCollectionBadgeColor(dto.badgeColor);
+		const row = await this.prisma.gameCollection.create({
+			data: {
+				title: dto.title.trim(),
+				description:
+					dto.description === undefined
+						? null
+						: (dto.description?.trim() || null),
+				badgeColor: badge,
+			},
+			select: {
+				id: true,
+				title: true,
+				description: true,
+				badgeColor: true,
+			},
+		});
+		return this.collectionToSummary(row)!;
+	}
+
+	async getCollection(id: string) {
+		await this.ensureCollection(id);
+		const row = await this.prisma.gameCollection.findUniqueOrThrow({
+			where: { id },
+			select: {
+				id: true,
+				title: true,
+				description: true,
+				badgeColor: true,
+			},
+		});
+		return this.collectionToSummary(row)!;
+	}
+
+	async patchCollection(id: string, dto: PatchCollectionDto) {
+		await this.ensureCollection(id);
+		const data: Prisma.GameCollectionUpdateInput = {};
+		if (dto.title !== undefined) data.title = dto.title.trim();
+		if (dto.description !== undefined) {
+			data.description =
+				dto.description === null ? null : dto.description.trim() || null;
+		}
+		if (dto.badgeColor !== undefined) {
+			data.badgeColor = coerceCollectionBadgeColor(dto.badgeColor);
+		}
+		const row = await this.prisma.gameCollection.update({
+			where: { id },
+			data,
+			select: {
+				id: true,
+				title: true,
+				description: true,
+				badgeColor: true,
+			},
+		});
+		return this.collectionToSummary(row)!;
+	}
+
+	async deleteCollection(id: string) {
+		await this.ensureCollection(id);
+		await this.prisma.gameCollection.delete({ where: { id } });
 	}
 
 	async getEdition(id: string) {
 		const edition = await this.prisma.gameEdition.findUnique({
 			where: { id },
 			include: {
-				copies: { orderBy: { id: "asc" } },
+				copies: {
+					orderBy: { id: "asc" },
+					include: {
+						collection: {
+							select: {
+								id: true,
+								title: true,
+								description: true,
+								badgeColor: true,
+							},
+						},
+					},
+				},
 				snapshot: true,
 				priceChartingConsole: { select: { name: true } },
 			},
@@ -398,6 +590,12 @@ export class InventoryService {
 
 		const coverStored =
 			await this.coverArt.ensureCoverImageStored(priceChartingProductId);
+
+		const initialCollectionId =
+			(dto.initialCopyCollectionId ?? "").trim() || null;
+		if (initialCollectionId) {
+			await this.ensureCollection(initialCollectionId);
+		}
 
 		const edition = await this.prisma.$transaction(async (tx) => {
 			const existing = await tx.gameEdition.findUnique({
@@ -441,6 +639,9 @@ export class InventoryService {
 					offerCurrency: offerAmt
 						? (dto.initialOfferCurrency?.trim() || "USD")
 						: null,
+					...(initialCollectionId
+						? { collectionId: initialCollectionId }
+						: {}),
 				},
 			});
 			return { id: editionId };
@@ -496,7 +697,7 @@ export class InventoryService {
 
 	async createCopy(editionId: string, dto: CreateCopyDto) {
 		await this.ensureEdition(editionId);
-		const copy = await this.prisma.ownedCopy.create({
+		const created = await this.prisma.ownedCopy.create({
 			data: {
 				editionId,
 				copyClassification: dto.copyClassification,
@@ -506,6 +707,20 @@ export class InventoryService {
 				purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : null,
 				offerAmount: d(dto.offerAmount ?? undefined),
 				offerCurrency: dto.offerCurrency ?? null,
+			},
+			select: { id: true },
+		});
+		const copy = await this.prisma.ownedCopy.findUniqueOrThrow({
+			where: { id: created.id },
+			include: {
+				collection: {
+					select: {
+						id: true,
+						title: true,
+						description: true,
+						badgeColor: true,
+					},
+				},
 			},
 		});
 		return this.copyToDto(copy);
@@ -532,10 +747,31 @@ export class InventoryService {
 		if (dto.soldCurrency !== undefined) data.soldCurrency = dto.soldCurrency;
 		if (dto.soldAt !== undefined)
 			data.soldAt = dto.soldAt ? new Date(dto.soldAt) : null;
+		if (dto.collectionId !== undefined) {
+			if (dto.collectionId === null) {
+				data.collection = { disconnect: true };
+			} else {
+				await this.ensureCollection(dto.collectionId);
+				data.collection = { connect: { id: dto.collectionId } };
+			}
+		}
 
-		const copy = await this.prisma.ownedCopy.update({
+		await this.prisma.ownedCopy.update({
 			where: { id: copyId },
 			data,
+		});
+		const copy = await this.prisma.ownedCopy.findUniqueOrThrow({
+			where: { id: copyId },
+			include: {
+				collection: {
+					select: {
+						id: true,
+						title: true,
+						description: true,
+						badgeColor: true,
+					},
+				},
+			},
 		});
 		return this.copyToDto(copy);
 	}
@@ -1110,6 +1346,31 @@ export class InventoryService {
 		if (!c) throw new NotFoundException("Copy not found");
 	}
 
+	private async ensureCollection(id: string) {
+		const row = await this.prisma.gameCollection.findUnique({ where: { id } });
+		if (!row) throw new NotFoundException("Collection not found");
+	}
+
+	private collectionToSummary(
+		c:
+			| {
+					id: string;
+					title: string;
+					description: string | null;
+					badgeColor: string;
+			  }
+			| null
+			| undefined,
+	) {
+		if (!c) return null;
+		return {
+			id: c.id,
+			title: c.title,
+			description: c.description,
+			badgeColor: coerceCollectionBadgeColor(c.badgeColor),
+		};
+	}
+
 	private editionToDto(
 		e: GameEdition & {
 			_count?: { copies: number };
@@ -1130,7 +1391,16 @@ export class InventoryService {
 		};
 	}
 
-	private copyToDto(c: OwnedCopy) {
+	private copyToDto(
+		c: OwnedCopy & {
+			collection?: {
+				id: string;
+				title: string;
+				description: string | null;
+				badgeColor: string;
+			} | null;
+		},
+	) {
 		return {
 			id: c.id,
 			editionId: c.editionId,
@@ -1144,6 +1414,7 @@ export class InventoryService {
 			soldAmount: decStr(c.soldAmount),
 			soldCurrency: c.soldCurrency,
 			soldAt: c.soldAt?.toISOString() ?? null,
+			collection: this.collectionToSummary(c.collection ?? null),
 		};
 	}
 

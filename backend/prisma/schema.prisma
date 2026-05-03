@@ -25,6 +25,19 @@ model PriceChartingConsole {
   editions GameEdition[]
 }
 
+/// User-defined shelf grouping; optional FK on OwnedCopy (at most one per copy).
+model GameCollection {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  /// Badge UI color as #RRGGBB
+  badgeColor  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  copies OwnedCopy[]
+}
+
 model GameEdition {
   id                       String   @id @default(uuid())
   upc                      String?  @unique
@@ -52,6 +65,8 @@ model OwnedCopy {
   id                   String             @id @default(uuid())
   editionId            String
   edition              GameEdition        @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  collectionId         String?
+  collection           GameCollection?    @relation(fields: [collectionId], references: [id], onDelete: SetNull)
   copyClassification   CopyClassification
   classificationNotes  String?
   purchaseAmount       Decimal?           @db.Decimal(12, 2)
@@ -64,6 +79,7 @@ model OwnedCopy {
   soldAt               DateTime?
 
   @@index([editionId])
+  @@index([collectionId])
 }
 
 /// Latest PriceCharting GET /api/product row — amounts are USD pennies (integer) per PriceCharting docs

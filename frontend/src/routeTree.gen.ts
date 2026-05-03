@@ -10,21 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as EntireCollectionRouteImport } from './routes/entire-collection'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InventoryIndexRouteImport } from './routes/inventory/index'
+import { Route as CollectionsIndexRouteImport } from './routes/collections/index'
 import { Route as InventoryAddRouteImport } from './routes/inventory/add'
 import { Route as InventoryEditionIdRouteImport } from './routes/inventory/$editionId'
+import { Route as CollectionsCollectionIdRouteImport } from './routes/collections/$collectionId'
+import { Route as CollectionsCollectionIdIndexRouteImport } from './routes/collections/$collectionId/index'
+import { Route as CollectionsCollectionIdGameEditionEditionIdRouteImport } from './routes/collections/$collectionId/gameEdition/$editionId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const EntireCollectionRoute = EntireCollectionRouteImport.update({
+  id: '/entire-collection',
+  path: '/entire-collection',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -42,6 +46,11 @@ const InventoryIndexRoute = InventoryIndexRouteImport.update({
   path: '/inventory/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
+  id: '/collections/',
+  path: '/collections/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InventoryAddRoute = InventoryAddRouteImport.update({
   id: '/inventory/add',
   path: '/inventory/add',
@@ -52,72 +61,113 @@ const InventoryEditionIdRoute = InventoryEditionIdRouteImport.update({
   path: '/inventory/$editionId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CollectionsCollectionIdRoute = CollectionsCollectionIdRouteImport.update({
+  id: '/collections/$collectionId',
+  path: '/collections/$collectionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionsCollectionIdIndexRoute =
+  CollectionsCollectionIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => CollectionsCollectionIdRoute,
+  } as any)
+const CollectionsCollectionIdGameEditionEditionIdRoute =
+  CollectionsCollectionIdGameEditionEditionIdRouteImport.update({
+    id: '/gameEdition/$editionId',
+    path: '/gameEdition/$editionId',
+    getParentRoute: () => CollectionsCollectionIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/dashboard': typeof DashboardRoute
+  '/entire-collection': typeof EntireCollectionRoute
   '/settings': typeof SettingsRoute
+  '/collections/$collectionId': typeof CollectionsCollectionIdRouteWithChildren
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
+  '/collections/': typeof CollectionsIndexRoute
   '/inventory/': typeof InventoryIndexRoute
+  '/collections/$collectionId/': typeof CollectionsCollectionIdIndexRoute
+  '/collections/$collectionId/gameEdition/$editionId': typeof CollectionsCollectionIdGameEditionEditionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/dashboard': typeof DashboardRoute
+  '/entire-collection': typeof EntireCollectionRoute
   '/settings': typeof SettingsRoute
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
+  '/collections': typeof CollectionsIndexRoute
   '/inventory': typeof InventoryIndexRoute
+  '/collections/$collectionId': typeof CollectionsCollectionIdIndexRoute
+  '/collections/$collectionId/gameEdition/$editionId': typeof CollectionsCollectionIdGameEditionEditionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/dashboard': typeof DashboardRoute
+  '/entire-collection': typeof EntireCollectionRoute
   '/settings': typeof SettingsRoute
+  '/collections/$collectionId': typeof CollectionsCollectionIdRouteWithChildren
   '/inventory/$editionId': typeof InventoryEditionIdRoute
   '/inventory/add': typeof InventoryAddRoute
+  '/collections/': typeof CollectionsIndexRoute
   '/inventory/': typeof InventoryIndexRoute
+  '/collections/$collectionId/': typeof CollectionsCollectionIdIndexRoute
+  '/collections/$collectionId/gameEdition/$editionId': typeof CollectionsCollectionIdGameEditionEditionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/about'
-    | '/dashboard'
+    | '/entire-collection'
     | '/settings'
+    | '/collections/$collectionId'
     | '/inventory/$editionId'
     | '/inventory/add'
+    | '/collections/'
     | '/inventory/'
+    | '/collections/$collectionId/'
+    | '/collections/$collectionId/gameEdition/$editionId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
-    | '/dashboard'
+    | '/entire-collection'
     | '/settings'
     | '/inventory/$editionId'
     | '/inventory/add'
+    | '/collections'
     | '/inventory'
+    | '/collections/$collectionId'
+    | '/collections/$collectionId/gameEdition/$editionId'
   id:
     | '__root__'
     | '/'
     | '/about'
-    | '/dashboard'
+    | '/entire-collection'
     | '/settings'
+    | '/collections/$collectionId'
     | '/inventory/$editionId'
     | '/inventory/add'
+    | '/collections/'
     | '/inventory/'
+    | '/collections/$collectionId/'
+    | '/collections/$collectionId/gameEdition/$editionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  DashboardRoute: typeof DashboardRoute
+  EntireCollectionRoute: typeof EntireCollectionRoute
   SettingsRoute: typeof SettingsRoute
+  CollectionsCollectionIdRoute: typeof CollectionsCollectionIdRouteWithChildren
   InventoryEditionIdRoute: typeof InventoryEditionIdRoute
   InventoryAddRoute: typeof InventoryAddRoute
+  CollectionsIndexRoute: typeof CollectionsIndexRoute
   InventoryIndexRoute: typeof InventoryIndexRoute
 }
 
@@ -130,11 +180,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/entire-collection': {
+      id: '/entire-collection'
+      path: '/entire-collection'
+      fullPath: '/entire-collection'
+      preLoaderRoute: typeof EntireCollectionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -158,6 +208,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventoryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collections/': {
+      id: '/collections/'
+      path: '/collections'
+      fullPath: '/collections/'
+      preLoaderRoute: typeof CollectionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inventory/add': {
       id: '/inventory/add'
       path: '/inventory/add'
@@ -172,16 +229,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventoryEditionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collections/$collectionId': {
+      id: '/collections/$collectionId'
+      path: '/collections/$collectionId'
+      fullPath: '/collections/$collectionId'
+      preLoaderRoute: typeof CollectionsCollectionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collections/$collectionId/': {
+      id: '/collections/$collectionId/'
+      path: '/'
+      fullPath: '/collections/$collectionId/'
+      preLoaderRoute: typeof CollectionsCollectionIdIndexRouteImport
+      parentRoute: typeof CollectionsCollectionIdRoute
+    }
+    '/collections/$collectionId/gameEdition/$editionId': {
+      id: '/collections/$collectionId/gameEdition/$editionId'
+      path: '/gameEdition/$editionId'
+      fullPath: '/collections/$collectionId/gameEdition/$editionId'
+      preLoaderRoute: typeof CollectionsCollectionIdGameEditionEditionIdRouteImport
+      parentRoute: typeof CollectionsCollectionIdRoute
+    }
   }
 }
+
+interface CollectionsCollectionIdRouteChildren {
+  CollectionsCollectionIdIndexRoute: typeof CollectionsCollectionIdIndexRoute
+  CollectionsCollectionIdGameEditionEditionIdRoute: typeof CollectionsCollectionIdGameEditionEditionIdRoute
+}
+
+const CollectionsCollectionIdRouteChildren: CollectionsCollectionIdRouteChildren =
+  {
+    CollectionsCollectionIdIndexRoute: CollectionsCollectionIdIndexRoute,
+    CollectionsCollectionIdGameEditionEditionIdRoute:
+      CollectionsCollectionIdGameEditionEditionIdRoute,
+  }
+
+const CollectionsCollectionIdRouteWithChildren =
+  CollectionsCollectionIdRoute._addFileChildren(
+    CollectionsCollectionIdRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  DashboardRoute: DashboardRoute,
+  EntireCollectionRoute: EntireCollectionRoute,
   SettingsRoute: SettingsRoute,
+  CollectionsCollectionIdRoute: CollectionsCollectionIdRouteWithChildren,
   InventoryEditionIdRoute: InventoryEditionIdRoute,
   InventoryAddRoute: InventoryAddRoute,
+  CollectionsIndexRoute: CollectionsIndexRoute,
   InventoryIndexRoute: InventoryIndexRoute,
 }
 export const routeTree = rootRouteImport

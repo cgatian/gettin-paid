@@ -1,4 +1,4 @@
-import type { GameEditionDto } from '@gettin-paid/shared';
+import type { DashboardSummaryDto, GameEditionDto } from '@gettin-paid/shared';
 import {
 	labelPriceChartingConsole,
 	POPULAR_PRICECHARTING_CONSOLE_IDS,
@@ -6,13 +6,13 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
-import { css, cx } from 'styled-system/css';
-import { Badge } from '#/components/ui/Badge';
+import { css } from 'styled-system/css';
+import { DashboardSummaryPanel } from '#/components/DashboardSummaryPanel';
+import { InventoryEditionList } from '#/components/InventoryEditionList';
 import { Button, buttonVariants } from '#/components/ui/Button';
 import { Card } from '#/components/ui/Card';
 import { Input } from '#/components/ui/Input';
-import { apiFetch, getApiBase } from '#/lib/api';
-import { formatMoneyAmount, formatPcCents } from '#/lib/money';
+import { apiFetch } from '#/lib/api';
 
 const popularSet = new Set(POPULAR_PRICECHARTING_CONSOLE_IDS);
 
@@ -26,34 +26,6 @@ export const Route = createFileRoute('/inventory/')({
 		return {};
 	},
 });
-
-function editionConsoleLabel(
-	e: Pick<
-		GameEditionDto,
-		'priceChartingConsoleId' | 'priceChartingConsoleName'
-	>,
-) {
-	return (
-		e.priceChartingConsoleName ??
-		labelPriceChartingConsole(e.priceChartingConsoleId)
-	);
-}
-
-function classificationLabel(c: string) {
-	return c.replace(/_/g, ' ');
-}
-
-function editionCoverSrc(
-	id: string,
-	coverFetchedAt: string | null,
-	hasCover: boolean,
-): string | null {
-	if (!hasCover || !coverFetchedAt) return null;
-	const base = getApiBase().replace(/\/$/, '');
-	const t = Date.parse(coverFetchedAt);
-	if (!Number.isFinite(t)) return null;
-	return `${base}/api/editions/${encodeURIComponent(id)}/cover?t=${t}`;
-}
 
 const pageClass = css({ p: '6' });
 
@@ -74,7 +46,6 @@ const pageTitleClass = css({
 	letterSpacing: '-0.01em',
 });
 
-/** Search + console filters stacked vertically */
 const filtersStackClass = css({
 	display: 'flex',
 	flexDir: 'column',
@@ -135,117 +106,6 @@ const filterChipInactive = css({
 	borderColor: 'transparent',
 	color: 'foregroundMuted',
 	_hover: { bg: 'navHover', color: 'foreground', borderColor: 'border' },
-});
-
-const listClass = css({
-	listStyle: 'none',
-	padding: '0',
-	margin: '0',
-	display: 'flex',
-	flexDir: 'column',
-	gap: '2',
-});
-
-/** Matches each edition row grid: title block | FMV | Proposed | actions */
-const listColumnHeaderClass = css({
-	display: { base: 'none', md: 'grid' },
-	gridTemplateColumns:
-		'minmax(0,1fr) auto auto minmax(min-content,max-content)',
-	columnGap: '4',
-	alignItems: 'baseline',
-	px: '4',
-	pb: '2',
-	mb: '1',
-	fontSize: 'xs',
-	fontWeight: 'medium',
-	color: 'foregroundMuted',
-	textTransform: 'uppercase',
-	letterSpacing: '0.06em',
-});
-
-const editionCardClass = css({
-	display: 'flex',
-	flexDir: 'column',
-	gap: '3',
-	p: '4',
-	textDecoration: 'none',
-	borderRadius: 'card',
-	bg: 'surface',
-	borderWidth: '1px',
-	borderStyle: 'solid',
-	borderColor: 'border',
-	transition: 'border-color 120ms ease, background-color 120ms ease',
-	_hover: { borderColor: 'borderSubtle', bg: 'rgba(255,255,255,0.03)' },
-	md: {
-		display: 'grid',
-		columnGap: '4',
-		rowGap: '2',
-		alignItems: 'center',
-		gridTemplateColumns:
-			'minmax(0,1fr) auto auto minmax(min-content,max-content)',
-	},
-});
-
-const editionTitleBlockClass = css({
-	minWidth: '0',
-	md: {
-		gridColumn: '1',
-		gridRow: '1 / 3',
-	},
-});
-
-const editionTitleClass = css({
-	fontSize: 'base',
-	fontWeight: 'medium',
-	color: 'foreground',
-	margin: '0 0 4px 0',
-});
-
-const editionMetaClass = css({
-	fontSize: 'sm',
-	color: 'foregroundMuted',
-	margin: '0',
-});
-
-const editionClassificationClass = css({
-	fontSize: 'sm',
-	color: 'foregroundMuted',
-	minWidth: '0',
-});
-
-const editionMetricClass = css({
-	fontSize: 'sm',
-	fontVariantNumeric: 'tabular-nums',
-	color: 'foreground',
-	textAlign: 'right',
-	whiteSpace: 'nowrap',
-});
-
-const editionMetricMutedClass = css({
-	fontSize: 'sm',
-	fontVariantNumeric: 'tabular-nums',
-	color: 'foregroundMuted',
-	textAlign: 'right',
-	whiteSpace: 'nowrap',
-});
-
-const editionActionsClass = css({
-	display: 'flex',
-	alignItems: 'center',
-	gap: '3',
-	alignSelf: 'flex-end',
-	justifyContent: 'flex-end',
-	md: {
-		gridColumn: '4',
-		alignSelf: 'center',
-		justifySelf: 'end',
-	},
-});
-
-const arrowClass = css({
-	fontSize: 'sm',
-	color: 'foregroundMuted',
-	flexShrink: '0',
 });
 
 const emptyClass = css({
@@ -325,6 +185,11 @@ function InventoryList() {
 		return [...head, ...tail];
 	}, [platformsQuery.data, nameById]);
 
+	const dashboardQ = useQuery({
+		queryKey: ['entire-collection'],
+		queryFn: () => apiFetch<DashboardSummaryDto>('/dashboard'),
+	});
+
 	const { data, isLoading, isError, error, refetch } = useQuery({
 		queryKey: ['editions', consoleFilter ?? 'all'],
 		queryFn: () => {
@@ -346,7 +211,7 @@ function InventoryList() {
 	return (
 		<div className={pageClass}>
 			<div className={pageHeaderClass}>
-				<h1 className={pageTitleClass}>Inventory</h1>
+				<h1 className={pageTitleClass}>Games</h1>
 				<div
 					className={css({
 						display: 'flex',
@@ -363,6 +228,43 @@ function InventoryList() {
 					</Link>
 				</div>
 			</div>
+
+			{dashboardQ.isLoading && (
+				<p className={css({ color: 'foregroundMuted', fontSize: 'sm', mb: '4' })}>
+					Loading metrics…
+				</p>
+			)}
+			{dashboardQ.isError && (
+				<div className={css({ mb: '6' })}>
+					<div className={errorCardClass}>
+						<p className={errorTitleClass}>Could not load library metrics.</p>
+						<p className={errorTextClass}>
+							{dashboardQ.error instanceof Error
+								? dashboardQ.error.message
+								: 'Unknown error'}
+						</p>
+						<Button
+							variant="secondary"
+							size="sm"
+							onClick={() => {
+								void dashboardQ.refetch();
+							}}
+						>
+							Retry metrics
+						</Button>
+					</div>
+				</div>
+			)}
+			{dashboardQ.data && (
+				<div className={css({ mb: '8' })}>
+					<DashboardSummaryPanel
+						data={dashboardQ.data}
+						pieEmptyLabel="No games yet."
+						gamesPerSystemEmptyHint="Add games to see how titles split across systems."
+						fmvCardTitle="All games FMV (snapshot)"
+					/>
+				</div>
+			)}
 
 			<div className={filtersStackClass}>
 				<div className={searchBlockClass}>
@@ -454,7 +356,7 @@ function InventoryList() {
 
 			{isError && (
 				<div className={errorCardClass}>
-					<p className={errorTitleClass}>Could not load inventory.</p>
+					<p className={errorTitleClass}>Could not load games.</p>
 					<p className={errorTextClass}>
 						{error instanceof Error ? error.message : 'Unknown error'}
 					</p>
@@ -495,152 +397,7 @@ function InventoryList() {
 			)}
 
 			{data && data.length > 0 && filteredEditions.length > 0 && (
-				<>
-					{filteredEditions.some((e) => (e.activeCopies?.length ?? 0) > 0) && (
-						<div className={listColumnHeaderClass} aria-hidden="true">
-							<span style={{ gridColumn: 1 }} />
-							<span style={{ gridColumn: 2, textAlign: 'right' }}>FMV</span>
-							<span style={{ gridColumn: 3, textAlign: 'right' }}>
-								Proposed
-							</span>
-							<span style={{ gridColumn: 4 }} />
-						</div>
-					)}
-					<ul className={listClass}>
-						{filteredEditions.map((e) => {
-							const copies = e.activeCopies ?? [];
-							const n = copies.length;
-							const thumbSrc = editionCoverSrc(
-								e.id,
-								e.coverFetchedAt ?? null,
-								e.hasCover,
-							);
-							return (
-								<li key={e.id}>
-									<Link
-										to="/inventory/$editionId"
-										params={{ editionId: e.id }}
-										className={editionCardClass}
-									>
-										<div className={editionTitleBlockClass}>
-											<div
-												className={css({
-													display: 'flex',
-													alignItems: 'flex-start',
-													gap: '3',
-												})}
-											>
-												{thumbSrc ? (
-													<img
-														src={thumbSrc}
-														alt=""
-														className={css({
-															width: '48px',
-															height: '48px',
-															objectFit: 'cover',
-															borderRadius: 'btn',
-															flexShrink: '0',
-															borderWidth: '1px',
-															borderStyle: 'solid',
-															borderColor: 'border',
-															bg: 'surface',
-														})}
-													/>
-												) : null}
-												<div className={css({ minWidth: '0', flex: '1' })}>
-													<p className={editionTitleClass}>{e.title}</p>
-													<p className={editionMetaClass}>
-														{editionConsoleLabel(e)}
-														{e.copyCount != null && e.copyCount > 0
-															? ` · ${e.copyCount} ${e.copyCount === 1 ? 'copy' : 'copies'}`
-															: ''}
-													</p>
-												</div>
-											</div>
-										</div>
-										{copies.map((row, i) => (
-											<div
-												key={row.id}
-												className={css({
-													display: { base: 'grid', md: 'contents' },
-													gridTemplateColumns: {
-														base: 'minmax(0,1fr) auto auto',
-														md: undefined,
-													},
-													columnGap: '3',
-													alignItems: 'baseline',
-													borderTopWidth: { base: '1px', md: '0' },
-													borderTopStyle: 'solid',
-													borderTopColor: 'borderSubtle',
-													pt: { base: '3', md: '0' },
-												})}
-											>
-												<span
-													className={cx(
-														editionClassificationClass,
-														css({
-															md: {
-																gridColumn: '1',
-																gridRow: `${3 + i} / ${4 + i}`,
-															},
-														}),
-													)}
-												>
-													{classificationLabel(row.copyClassification)}
-												</span>
-												<span
-													className={cx(
-														editionMetricClass,
-														css({
-															md: {
-																gridColumn: '2',
-																gridRow: `${3 + i} / ${4 + i}`,
-															},
-														}),
-													)}
-												>
-													{formatPcCents(row.fmvCents)}
-												</span>
-												<span
-													className={cx(
-														row.offerAmount != null
-															? editionMetricClass
-															: editionMetricMutedClass,
-														css({
-															md: {
-																gridColumn: '3',
-																gridRow: `${3 + i} / ${4 + i}`,
-															},
-														}),
-													)}
-												>
-													{row.offerAmount != null
-														? formatMoneyAmount(row.offerAmount)
-														: '—'}
-												</span>
-											</div>
-										))}
-										<div
-											className={cx(
-												editionActionsClass,
-												css({
-													md: {
-														gridRow: n > 0 ? `1 / ${3 + n}` : '1 / 3',
-													},
-												}),
-											)}
-										>
-											{e.copyCount != null && e.copyCount > 0 && (
-												<Badge variant="default">{e.copyCount}</Badge>
-											)}
-											<span className={arrowClass}>→</span>
-										</div>
-									</Link>
-								</li>
-							);
-						})}
-					</ul>
-				</>
+				<InventoryEditionList editions={filteredEditions} />
 			)}
 		</div>
 	);

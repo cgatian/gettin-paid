@@ -3,6 +3,7 @@ import {
 	CopyClassification,
 	type EditionDetailDto,
 	type FetchEditionCoverResponseDto,
+	type GameCollectionSummaryDto,
 	labelPriceChartingConsole,
 	type OwnedCopyDto,
 	type PriceChartingPricingPreviewDto,
@@ -13,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { css, cx } from 'styled-system/css';
+import { CollectionBadge } from '#/components/CollectionBadge';
 import { Badge } from '#/components/ui/Badge';
 import { Button } from '#/components/ui/Button';
 import {
@@ -26,9 +28,20 @@ import { apiFetch, apiFetchPost, getApiBase } from '#/lib/api';
 import { formatMoneyAmount, formatPcCents } from '#/lib/money';
 import { playSaleSavedConfetti } from '#/lib/saleConfetti';
 
+export type EditionDetailProps = {
+	editionId: string;
+	/** When set, only copies assigned to this collection are listed; navigation targets collection hub. */
+	collectionScopeId?: string;
+};
+
 export const Route = createFileRoute('/inventory/$editionId')({
-	component: EditionDetail,
+	component: InventoryEditionDetailPage,
 });
+
+function InventoryEditionDetailPage() {
+	const { editionId } = Route.useParams();
+	return <EditionDetail editionId={editionId} />;
+}
 
 const CLASSIFICATION_OPTIONS = Object.values(CopyClassification);
 
@@ -541,8 +554,10 @@ const modalFormColumnClass = css({
 	width: '100%',
 });
 
-function EditionDetail() {
-	const { editionId } = Route.useParams();
+export function EditionDetail({
+	editionId,
+	collectionScopeId,
+}: EditionDetailProps) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [copyError, setCopyError] = useState<string | null>(null);
@@ -566,6 +581,7 @@ function EditionDetail() {
 		useState<CopyClassification>(CopyClassification.CIB);
 	const [editNotes, setEditNotes] = useState('');
 	const [editOfferAmount, setEditOfferAmount] = useState('');
+	const [editCollectionId, setEditCollectionId] = useState('');
 	const [editCopyError, setEditCopyError] = useState<string | null>(null);
 	const [addCopyModalOpen, setAddCopyModalOpen] = useState(false);
 	const [addCopyOfferAmount, setAddCopyOfferAmount] = useState('');
@@ -584,6 +600,21 @@ function EditionDetail() {
 	const q = useQuery({
 		queryKey: ['edition', editionId],
 		queryFn: () => apiFetch<EditionDetailDto>(`/editions/${editionId}`),
+	});
+
+	const collectionsQuery = useQuery({
+		queryKey: ['collections'],
+		queryFn: () => apiFetch<GameCollectionSummaryDto[]>('/collections'),
+		staleTime: 60_000,
+	});
+
+	const scopedCollectionQ = useQuery({
+		queryKey: ['collection', collectionScopeId],
+		queryFn: () =>
+			apiFetch<GameCollectionSummaryDto>(
+				`/collections/${encodeURIComponent(collectionScopeId!)}`,
+			),
+		enabled: Boolean(collectionScopeId?.trim()),
 	});
 
 	const addCopyPricingQuery = useQuery({
@@ -735,7 +766,9 @@ function EditionDetail() {
 			setRefreshError(null);
 			queryClient.setQueryData(['edition', editionId], data);
 			void queryClient.invalidateQueries({ queryKey: ['editions'] });
-			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			void queryClient.invalidateQueries({ queryKey: ['entire-collection'] });
+			void queryClient.invalidateQueries({ queryKey: ['collections'] });
+			void queryClient.invalidateQueries({ queryKey: ['collection-summary'] });
 		},
 		onError: (e) => {
 			setRefreshError(e instanceof Error ? e.message : 'Refresh failed');
@@ -789,8 +822,16 @@ function EditionDetail() {
 			setAddCopyPurchaseAmount('');
 			setAddCopyModalOpen(false);
 			void q.refetch();
-			void queryClient.invalidateQueries({ queryKey: ['editions'] });
-			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['editions'],
+				refetchType: 'all',
+			});
+			void queryClient.invalidateQueries({ queryKey: ['entire-collection'] });
+			void queryClient.invalidateQueries({ queryKey: ['collections'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['collection-summary'],
+				refetchType: 'all',
+			});
 		},
 		onError: (e) => {
 			setCopyError(e instanceof Error ? e.message : 'Could not add copy');
@@ -857,6 +898,7 @@ function EditionDetail() {
 		setEditOfferAmount(initialOffer);
 		editOpenedWithEmptyOfferRef.current = !initialOffer;
 		editOfferSliderHydratedRef.current = false;
+		setEditCollectionId(c.collection?.id ?? '');
 
 		setEditCopyError(null);
 	}
@@ -866,6 +908,7 @@ function EditionDetail() {
 		prevEditClassificationForOfferRef.current = null;
 		editOpenedWithEmptyOfferRef.current = false;
 		editOfferSliderHydratedRef.current = false;
+		setEditCollectionId('');
 		setEditCopyError(null);
 	}
 
@@ -885,6 +928,11 @@ function EditionDetail() {
 				body.offerAmount = null;
 				body.offerCurrency = null;
 			}
+			const orig = q.data?.copies.find((c) => c.id === id);
+			const origCollectionId = orig?.collection?.id ?? '';
+			if (editCollectionId !== origCollectionId) {
+				body.collectionId = editCollectionId === '' ? null : editCollectionId;
+			}
 			return apiFetch<OwnedCopyDto>(`/copies/${id}`, {
 				method: 'PATCH',
 				body: JSON.stringify(body),
@@ -893,8 +941,16 @@ function EditionDetail() {
 		onSuccess: () => {
 			closeEditCopyModal();
 			void q.refetch();
-			void queryClient.invalidateQueries({ queryKey: ['editions'] });
-			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['editions'],
+				refetchType: 'all',
+			});
+			void queryClient.invalidateQueries({ queryKey: ['entire-collection'] });
+			void queryClient.invalidateQueries({ queryKey: ['collections'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['collection-summary'],
+				refetchType: 'all',
+			});
 		},
 		onError: (e) => {
 			setEditCopyError(
@@ -928,8 +984,16 @@ function EditionDetail() {
 			closeSellModal();
 			queueMicrotask(() => playSaleSavedConfetti());
 			void q.refetch();
-			void queryClient.invalidateQueries({ queryKey: ['editions'] });
-			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['editions'],
+				refetchType: 'all',
+			});
+			void queryClient.invalidateQueries({ queryKey: ['entire-collection'] });
+			void queryClient.invalidateQueries({ queryKey: ['collections'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['collection-summary'],
+				refetchType: 'all',
+			});
 		},
 		onError: (e) => {
 			setSellError(e instanceof Error ? e.message : 'Could not save sale');
@@ -943,9 +1007,24 @@ function EditionDetail() {
 			setDeleteModalOpen(false);
 			setDeleteError(null);
 			void queryClient.removeQueries({ queryKey: ['edition', editionId] });
-			void queryClient.invalidateQueries({ queryKey: ['editions'] });
-			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-			void navigate({ to: '/inventory' });
+			void queryClient.invalidateQueries({
+				queryKey: ['editions'],
+				refetchType: 'all',
+			});
+			void queryClient.invalidateQueries({ queryKey: ['entire-collection'] });
+			void queryClient.invalidateQueries({ queryKey: ['collections'] });
+			void queryClient.invalidateQueries({
+				queryKey: ['collection-summary'],
+				refetchType: 'all',
+			});
+			void navigate(
+				collectionScopeId
+					? {
+							to: '/collections/$collectionId',
+							params: { collectionId: collectionScopeId },
+						}
+					: { to: '/inventory' },
+			);
 		},
 		onError: (e) => {
 			setDeleteError(e instanceof Error ? e.message : 'Could not delete game');
@@ -955,12 +1034,15 @@ function EditionDetail() {
 	const copiesSorted = useMemo(() => {
 		const copies = q.data?.copies;
 		if (!copies) return [];
-		return [...copies].sort((a, b) => {
+		const filtered = collectionScopeId
+			? copies.filter((c) => c.collection?.id === collectionScopeId)
+			: copies;
+		return [...filtered].sort((a, b) => {
 			const aSold = a.soldAt != null ? 1 : 0;
 			const bSold = b.soldAt != null ? 1 : 0;
 			return aSold - bSold;
 		});
-	}, [q.data?.copies]);
+	}, [q.data?.copies, collectionScopeId]);
 
 	const sellingCopy = useMemo(() => {
 		const edition = q.data;
@@ -1039,9 +1121,39 @@ function EditionDetail() {
 				<p className={css({ color: 'danger', mb: '3' })}>
 					{q.error instanceof Error ? q.error.message : 'Edition not found'}
 				</p>
-				<Link to="/inventory" className={backLinkClass}>
-					← Back to inventory
-				</Link>
+				{collectionScopeId ? (
+					<Link
+						to="/collections/$collectionId"
+						params={{ collectionId: collectionScopeId }}
+						className={cx(
+							backLinkClass,
+							css({
+								minW: '0',
+								maxW: { base: 'min(100vw - 6rem, 320px)', sm: '400px' },
+							}),
+						)}
+						title={scopedCollectionQ.data?.title ?? undefined}
+						aria-label={`Back to collection ${scopedCollectionQ.data?.title?.trim() || 'Collection'}`}
+					>
+						<span
+							className={css({
+								display: 'inline-block',
+								maxW: '100%',
+								overflow: 'hidden',
+								textOverflow: 'ellipsis',
+								whiteSpace: 'nowrap',
+								verticalAlign: 'bottom',
+							})}
+						>
+							←{' '}
+							{scopedCollectionQ.data?.title?.trim() || 'Collection'}
+						</span>
+					</Link>
+				) : (
+					<Link to="/inventory" className={backLinkClass}>
+						← Back to Games
+					</Link>
+				)}
 			</div>
 		);
 	}
@@ -1054,11 +1166,64 @@ function EditionDetail() {
 	const editingCopy =
 		editCopyId !== null ? e.copies.find((c) => c.id === editCopyId) : undefined;
 
+	const collectionNavName =
+		scopedCollectionQ.data?.title?.trim() || 'Collection';
+
 	return (
 		<div className={pageClass}>
-			<Link to="/inventory" className={backLinkClass}>
-				← Inventory
-			</Link>
+			<div
+				className={css({
+					display: 'flex',
+					flexWrap: 'wrap',
+					alignItems: 'center',
+					columnGap: '3',
+					rowGap: '1',
+					mb: '3',
+				})}
+			>
+				{collectionScopeId ? (
+					<>
+						<Link
+							to="/collections/$collectionId"
+							params={{ collectionId: collectionScopeId }}
+							className={cx(
+								backLinkClass,
+								css({
+									minW: '0',
+									maxW: { base: 'min(100vw - 6rem, 320px)', sm: '400px' },
+								}),
+							)}
+							title={scopedCollectionQ.data?.title ?? undefined}
+							aria-label={`Back to collection ${collectionNavName}`}
+						>
+							<span
+								className={css({
+									display: 'inline-block',
+									maxW: '100%',
+									overflow: 'hidden',
+									textOverflow: 'ellipsis',
+									whiteSpace: 'nowrap',
+									verticalAlign: 'bottom',
+								})}
+							>
+								← {collectionNavName}
+							</span>
+						</Link>
+						<span className={css({ color: 'foregroundMuted', fontSize: 'sm' })}>·</span>
+						<Link
+							to="/inventory/$editionId"
+							params={{ editionId }}
+							className={backLinkClass}
+						>
+							All copies (full list)
+						</Link>
+					</>
+				) : (
+					<Link to="/inventory" className={backLinkClass}>
+						← Games
+					</Link>
+				)}
+			</div>
 
 			<div className={pageHeaderClass}>
 				<div
@@ -1275,34 +1440,65 @@ function EditionDetail() {
 								flexWrap: 'wrap',
 							})}
 						>
-							<span className={cardTitleClass}>Your copies</span>
-							{e.copies.length > 0 && (
-								<Badge variant="default">{e.copies.length}</Badge>
+							<span className={cardTitleClass}>
+								{collectionScopeId ? 'Copies in this collection' : 'Your copies'}
+							</span>
+							{copiesSorted.length > 0 && (
+								<Badge variant="default">{copiesSorted.length}</Badge>
 							)}
 						</span>
-						<Button
-							type="button"
-							variant="primary"
-							size="sm"
-							onClick={() => {
-								setCopyError(null);
-								setAddCopyOfferAmount('');
-								setAddCopyPurchaseAmount('');
-								setAddCopyModalOpen(true);
-							}}
-						>
-							+ Add copy
-						</Button>
+						{collectionScopeId ? null : (
+							<Button
+								type="button"
+								variant="primary"
+								size="sm"
+								onClick={() => {
+									setCopyError(null);
+									setAddCopyOfferAmount('');
+									setAddCopyPurchaseAmount('');
+									setAddCopyModalOpen(true);
+								}}
+							>
+								+ Add copy
+							</Button>
+						)}
 					</div>
 					<div className={cardBody}>
-						{e.copies.length === 0 ? (
-							<p className={emptyTextClass}>
-								No copies logged yet. Use{' '}
-								<strong className={css({ color: 'foreground' })}>
-									Add copy
-								</strong>{' '}
-								above to log one.
-							</p>
+						{copiesSorted.length === 0 ? (
+							collectionScopeId ? (
+								e.copies.length > 0 ? (
+									<p className={emptyTextClass}>
+										No copies of this game are assigned to this collection.{' '}
+										<Link
+											to="/inventory/$editionId"
+											params={{ editionId }}
+											className={backLinkClass}
+										>
+											View all copies on Games
+										</Link>
+									</p>
+								) : (
+									<p className={emptyTextClass}>
+										No copies logged yet. Use{' '}
+										<Link
+											to="/inventory/$editionId"
+											params={{ editionId }}
+											className={backLinkClass}
+										>
+											Games view
+										</Link>{' '}
+										to add a copy.
+									</p>
+								)
+							) : (
+								<p className={emptyTextClass}>
+									No copies logged yet. Use{' '}
+									<strong className={css({ color: 'foreground' })}>
+										Add copy
+									</strong>{' '}
+									above to log one.
+								</p>
+							)
 						) : (
 							<div className={copiesTableScrollClass}>
 								<div className={copiesTableMinClass}>
@@ -1339,16 +1535,24 @@ function EditionDetail() {
 											</div>
 											<div className={copyFieldPairClass}>
 												<span className={copyMobileLabelClass}>Class</span>
-												<span
+												<div
 													className={cx(
 														copyClassClass,
 														css({
 															textAlign: { base: 'right', md: 'left' },
+															display: 'flex',
+															flexWrap: 'wrap',
+															alignItems: 'center',
+															gap: '2',
+															justifyContent: { base: 'flex-end', md: 'flex-start' },
 														}),
 													)}
 												>
-													{c.copyClassification.replace(/_/g, ' ')}
-												</span>
+													<span>{c.copyClassification.replace(/_/g, ' ')}</span>
+													{c.collection ? (
+														<CollectionBadge collection={c.collection} />
+													) : null}
+												</div>
 											</div>
 											<div className={copyFieldPairClass}>
 												<span className={copyMobileLabelClass}>Paid</span>
@@ -1743,6 +1947,22 @@ function EditionDetail() {
 										}))}
 										portalContainer={editCopyDialogPopupRef}
 									/>
+								</div>
+								<div>
+									<Label htmlFor="edit-collection">Collection</Label>
+									<select
+										id="edit-collection"
+										className={inputClass}
+										value={editCollectionId}
+										onChange={(ev) => setEditCollectionId(ev.target.value)}
+									>
+										<option value="">None</option>
+										{(collectionsQuery.data ?? []).map((col) => (
+											<option key={col.id} value={col.id}>
+												{col.title}
+											</option>
+										))}
+									</select>
 								</div>
 								<div>
 									<Label htmlFor="edit-notes">Notes (optional)</Label>

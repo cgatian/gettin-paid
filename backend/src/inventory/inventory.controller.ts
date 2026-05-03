@@ -13,9 +13,11 @@ import {
 	Res,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
+import { CreateCollectionDto } from "./dto/create-collection.dto";
 import { CreateCopyDto } from "./dto/create-copy.dto";
 import { CreateEditionDto } from "./dto/create-edition.dto";
 import { ImportCsvDto } from "./dto/import-csv.dto";
+import { PatchCollectionDto } from "./dto/patch-collection.dto";
 import { PatchCopyDto } from "./dto/patch-copy.dto";
 import { PatchEditionDto } from "./dto/patch-edition.dto";
 import { InventoryService } from "./inventory.service";
@@ -71,16 +73,50 @@ export class InventoryController {
 		return this.inventory.dashboardSummary();
 	}
 
+	@Get("collections")
+	listCollections() {
+		return this.inventory.listCollections();
+	}
+
+	@Post("collections")
+	createCollection(@Body() dto: CreateCollectionDto) {
+		return this.inventory.createCollection(dto);
+	}
+
+	@Get("collections/:id/summary")
+	collectionSummary(@Param("id") id: string) {
+		return this.inventory.collectionSummary(id);
+	}
+
+	@Get("collections/:id")
+	getCollection(@Param("id") id: string) {
+		return this.inventory.getCollection(id);
+	}
+
+	@Patch("collections/:id")
+	patchCollection(@Param("id") id: string, @Body() dto: PatchCollectionDto) {
+		return this.inventory.patchCollection(id, dto);
+	}
+
+	@Delete("collections/:id")
+	@HttpCode(HttpStatus.NO_CONTENT)
+	deleteCollection(@Param("id") id: string) {
+		return this.inventory.deleteCollection(id);
+	}
+
 	@Get("editions")
 	async list(
 		@Query("console") console?: string,
 		@Query("platform") platformLegacy?: string,
+		@Query("collection") collection?: string,
 	) {
-		const filter = await this.inventory.resolveConsoleFilterQuery(
-			console,
-			platformLegacy,
-		);
-		return this.inventory.listEditions(filter);
+		const [filter, collectionId] = await Promise.all([
+			this.inventory.resolveConsoleFilterQuery(console, platformLegacy),
+			collection?.trim()
+				? this.inventory.resolveCollectionFilterQuery(collection)
+				: Promise.resolve(undefined),
+		]);
+		return this.inventory.listEditions(filter, collectionId);
 	}
 
 	@Post("editions/refresh-all-market")

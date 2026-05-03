@@ -1,4 +1,4 @@
-import { css } from 'styled-system/css';
+import { css, cx } from 'styled-system/css';
 
 const wrapClass = css({
 	display: 'flex',
@@ -90,38 +90,55 @@ export interface GamesPerSystemPieProps {
 	/** Count of games (editions) per label */
 	slices: { label: string; value: number }[];
 	emptyLabel?: string;
+	/** Merged onto the chart wrapper (e.g. flex fill inside a metric card). */
+	className?: string;
 }
 
 export function GamesPerSystemPie({
 	slices,
 	emptyLabel = 'No games to chart yet.',
+	className,
 }: GamesPerSystemPieProps) {
 	const pieData = mergeSlicesForPie(slices);
 	const total = pieData.reduce((s, d) => s + d.value, 0);
 
 	if (total === 0) {
 		return (
-			<p
-				className={css({
-					fontSize: 'sm',
-					color: 'foregroundMuted',
-					m: '0',
-					py: '6',
-					textAlign: 'center',
-				})}
+			<div
+				className={cx(
+					css({
+						flex: '1',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						minH: '0',
+						w: '100%',
+					}),
+					className,
+				)}
 			>
-				{emptyLabel}
-			</p>
+				<p
+					className={css({
+						fontSize: 'sm',
+						color: 'foregroundMuted',
+						m: '0',
+						py: '6',
+						textAlign: 'center',
+					})}
+				>
+					{emptyLabel}
+				</p>
+			</div>
 		);
 	}
 
-	const cx = 100;
-	const cy = 100;
+	const centerX = 100;
+	const centerY = 100;
 	const r = 88;
 	let angle = 0;
 
 	return (
-		<div className={wrapClass}>
+		<div className={cx(wrapClass, className)}>
 			<svg
 				width="200"
 				height="200"
@@ -141,14 +158,29 @@ export function GamesPerSystemPie({
 					const start = angle;
 					const end = angle + sweep;
 					angle = end;
-					const path = describeSlice(cx, cy, r, start, end);
 					const fill = `hsl(${hueForIndex(i)} 58% 52% / 0.92)`;
+					const stroke = 'rgba(0,0,0,0.35)';
+					/** Single full slice: SVG arc cannot connect start=end for 360°, so use a circle. */
+					if (pieData.length === 1 || sweep >= 359.999) {
+						return (
+							<circle
+								key={`${d.label}-full`}
+								cx={centerX}
+								cy={centerY}
+								r={r}
+								fill={fill}
+								stroke={stroke}
+								strokeWidth="1"
+							/>
+						);
+					}
+					const path = describeSlice(centerX, centerY, r, start, end);
 					return (
 						<path
 							key={`${d.label}-${start}-${end}`}
 							d={path}
 							fill={fill}
-							stroke="rgba(0,0,0,0.35)"
+							stroke={stroke}
 							strokeWidth="1"
 						/>
 					);

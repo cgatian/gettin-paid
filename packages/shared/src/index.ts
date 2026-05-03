@@ -80,7 +80,54 @@ export type PriceChartingProductApi = {
 	'error-message'?: string;
 };
 
-/** One unsold copy on the inventory list, with condition-based FMV and optional proposed price */
+/** Eight predefined collection badge colors (#RRGGBB, stored uppercase in API). */
+export const COLLECTION_BADGE_COLORS = [
+	'#6366F1',
+	'#22C55E',
+	'#EF4444',
+	'#F59E0B',
+	'#8B5CF6',
+	'#06B6D4',
+	'#EC4899',
+	'#78716C',
+] as const;
+
+export type CollectionBadgeColor =
+	(typeof COLLECTION_BADGE_COLORS)[number];
+
+const COLLECTION_BADGE_COLOR_SET = new Set<string>(
+	COLLECTION_BADGE_COLORS as readonly string[],
+);
+
+export const DEFAULT_COLLECTION_BADGE_COLOR: CollectionBadgeColor =
+	COLLECTION_BADGE_COLORS[0];
+
+/** True if `value` matches one of {@link COLLECTION_BADGE_COLORS} (case-insensitive). */
+export function isCollectionBadgeColor(value: string): boolean {
+	return COLLECTION_BADGE_COLOR_SET.has(value.trim().toUpperCase());
+}
+
+/** Returns uppercase preset hex, or {@link DEFAULT_COLLECTION_BADGE_COLOR} if invalid. */
+export function coerceCollectionBadgeColor(
+	value: string | undefined | null,
+): CollectionBadgeColor {
+	const u = value?.trim().toUpperCase() ?? '';
+	if (COLLECTION_BADGE_COLOR_SET.has(u)) return u as CollectionBadgeColor;
+	return DEFAULT_COLLECTION_BADGE_COLOR;
+}
+
+/** User collection shown on copies and in dropdowns */
+export type GameCollectionSummaryDto = {
+	id: string;
+	title: string;
+	description: string | null;
+	badgeColor: string;
+};
+
+/**
+ * One copy row on GET /editions lists. Main inventory is unsold only (`soldAt` null).
+ * Collection-scoped lists may include sold copies still tagged with that collection.
+ */
 export type EditionListActiveCopyDto = {
 	id: string;
 	copyClassification: CopyClassification;
@@ -88,6 +135,10 @@ export type EditionListActiveCopyDto = {
 	fmvCents: number | null;
 	offerAmount: string | null;
 	offerCurrency: string | null;
+	/** At most one collection per owned copy */
+	collection: GameCollectionSummaryDto | null;
+	/** ISO date-only or datetime when sold; null while still in inventory */
+	soldAt: string | null;
 };
 
 /** Platform = PriceCharting console id (e.g. G8, G17). See PRICECHARTING_CONSOLES */
@@ -105,7 +156,7 @@ export type GameEditionDto = {
 	/** ISO timestamp when cover scrape succeeded; null if none */
 	coverFetchedAt: string | null;
 	copyCount?: number;
-	/** Set on GET /editions: unsold copies with FMV and optional proposed (offer) price */
+	/** Set on GET /editions: per-row copies (unsold only except collection filter may include sold) */
 	activeCopies?: EditionListActiveCopyDto[];
 };
 
@@ -122,6 +173,7 @@ export type OwnedCopyDto = {
 	soldAmount: string | null;
 	soldCurrency: string | null;
 	soldAt: string | null;
+	collection: GameCollectionSummaryDto | null;
 };
 
 /** GET /api/product-pricing — live PriceCharting prices for a product id (add flow) */
@@ -225,6 +277,7 @@ export type DashboardSummaryDto = {
 	valuedCopyCount: number;
 	/** Active copies with no usable FMV (no snapshot, unmapped classification, or null price) */
 	unpricedCopyCount: number;
+	/** Unsold copies in scope (library-wide, or unsold copies tagged to a collection). */
 	activeCopyCount: number;
 	editionCount: number;
 	/**
@@ -234,6 +287,10 @@ export type DashboardSummaryDto = {
 	proposedTotalUsdCents: number;
 	/** Active copies counted toward proposedTotalUsdCents */
 	proposedOfferCopyCount: number;
+	/** Sum of recorded sale amounts for sold copies (USD whole cents); non-USD sales excluded */
+	soldTotalUsdCents: number;
+	/** Sold copies with a USD sale amount included in soldTotalUsdCents */
+	soldCopyCount: number;
 };
 
 export type BulkImportResultDto = {

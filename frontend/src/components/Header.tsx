@@ -61,7 +61,7 @@ export default function Header() {
 						className="nav-link"
 						activeProps={{ className: 'nav-link is-active' }}
 					>
-						Inventory
+						Games
 					</Link>
 					<Link
 						to="/about"

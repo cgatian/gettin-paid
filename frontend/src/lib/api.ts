@@ -44,6 +44,18 @@ export async function apiFetchPost<T>(
 	});
 }
 
+export async function apiFetchPatch<T>(
+	path: string,
+	body?: unknown,
+	init?: Omit<RequestInit, 'body' | 'method'>,
+): Promise<T> {
+	return apiFetch<T>(path, {
+		...init,
+		method: 'PATCH',
+		...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+	});
+}
+
 export async function apiFetchBlob(path: string): Promise<Blob> {
 	const base = getApiBase().replace(/\/$/, '');
 	const p = path.startsWith('/') ? path : `/${path}`;

@@ -1,11 +1,14 @@
 import { CopyClassification } from "@prisma/client";
 import {
+	Allow,
 	IsDateString,
 	IsEnum,
 	IsNumberString,
 	IsOptional,
 	IsString,
+	IsUUID,
 	MaxLength,
+	ValidateIf,
 } from "class-validator";
 
 export class PatchCopyDto {
@@ -52,4 +55,10 @@ export class PatchCopyDto {
 	@IsOptional()
 	@IsDateString()
 	soldAt?: string | null;
+
+	@IsOptional()
+	@Allow()
+	@ValidateIf((o: PatchCopyDto) => o.collectionId !== undefined && o.collectionId !== null)
+	@IsUUID("4")
+	collectionId?: string | null;
 }

@@ -226,7 +226,7 @@ function Settings() {
 		onSuccess: (r) => {
 			setBulkResult(r);
 			void queryClient.invalidateQueries({ queryKey: ['editions'] });
-			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			void queryClient.invalidateQueries({ queryKey: ['entire-collection'] });
 		},
 		onSettled: () => {
 			setBulkProgress(null);
@@ -269,7 +269,7 @@ function Settings() {
 			setImportError(null);
 			void queryClient.invalidateQueries({ queryKey: ['editions'] });
 			void queryClient.invalidateQueries({ queryKey: ['edition'] });
-			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			void queryClient.invalidateQueries({ queryKey: ['entire-collection'] });
 		},
 		onError: (err) => {
 			setImportError(err instanceof Error ? err.message : 'Import failed');
