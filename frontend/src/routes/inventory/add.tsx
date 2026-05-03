@@ -277,26 +277,39 @@ function AddGame() {
 		setScanError(null);
 		const url = URL.createObjectURL(file);
 		try {
-			const Quagga = (await import("@ericblade/quagga2")).default;
-			const result = await Quagga.decodeSingle({
-				src: url,
-				numOfWorkers: 0,
-				locate: true,
-				decoder: {
-					readers: [
-						"ean_reader",
-						"ean_8_reader",
-						"upc_reader",
-						"upc_e_reader",
-						"code_128_reader",
-					],
-				},
-			});
+			const { default: Quagga } = await import("@ericblade/quagga2");
+			// Quagga's decodeSingle Promise can hang if its async initialization
+			// fails (e.g. canvas setup error, image load error). Race against a
+			// timeout so the UI never gets permanently stuck.
+			const SCAN_TIMEOUT_MS = 15_000;
+			const result = await Promise.race([
+				Quagga.decodeSingle({
+					src: url,
+					locate: true,
+					decoder: {
+						readers: [
+							"ean_reader",
+							"ean_8_reader",
+							"upc_reader",
+							"upc_e_reader",
+							"code_128_reader",
+						],
+					},
+					locator: { patchSize: "large", halfSample: false },
+				}),
+				new Promise<never>((_, reject) =>
+					setTimeout(() => reject(new Error("scan_timeout")), SCAN_TIMEOUT_MS),
+				),
+			]);
 			const code = result?.codeResult?.code;
 			if (code) setUpc(code);
 			else setScanError("No barcode found — try a clearer photo.");
-		} catch {
-			setScanError("No barcode found — try a clearer photo.");
+		} catch (err) {
+			if (err instanceof Error && err.message === "scan_timeout") {
+				setScanError("Scan timed out — try a clearer photo or enter manually.");
+			} else {
+				setScanError("No barcode found — try a clearer photo.");
+			}
 		} finally {
 			URL.revokeObjectURL(url);
 			setIsScanning(false);
