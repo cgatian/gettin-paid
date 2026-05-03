@@ -15,6 +15,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { css, cx } from 'styled-system/css';
 import { CollectionBadge } from '#/components/CollectionBadge';
+import { CollectionsMultiCombobox } from '#/components/CollectionsMultiCombobox';
 import { Badge } from '#/components/ui/Badge';
 import { Button } from '#/components/ui/Button';
 import {
@@ -581,11 +582,14 @@ export function EditionDetail({
 		useState<CopyClassification>(CopyClassification.CIB);
 	const [editNotes, setEditNotes] = useState('');
 	const [editOfferAmount, setEditOfferAmount] = useState('');
-	const [editCollectionId, setEditCollectionId] = useState('');
+	const [editCollectionIds, setEditCollectionIds] = useState<string[]>([]);
 	const [editCopyError, setEditCopyError] = useState<string | null>(null);
 	const [addCopyModalOpen, setAddCopyModalOpen] = useState(false);
 	const [addCopyOfferAmount, setAddCopyOfferAmount] = useState('');
 	const [addCopyPurchaseAmount, setAddCopyPurchaseAmount] = useState('');
+	const [addCopyCollectionIds, setAddCopyCollectionIds] = useState<string[]>(
+		[],
+	);
 	const addCopyDialogPopupRef = useRef<HTMLDivElement>(null);
 	const editCopyDialogPopupRef = useRef<HTMLDivElement>(null);
 	/** Tracks classification when Edit copy opened; used to apply FMV only after user changes class. */
@@ -813,6 +817,9 @@ export function EditionDetail({
 								offerCurrency: 'USD',
 							}
 						: {}),
+					...(addCopyCollectionIds.length
+						? { collectionIds: addCopyCollectionIds }
+						: {}),
 				}),
 			}),
 		onSuccess: () => {
@@ -820,6 +827,7 @@ export function EditionDetail({
 			setNotes('');
 			setAddCopyOfferAmount('');
 			setAddCopyPurchaseAmount('');
+			setAddCopyCollectionIds([]);
 			setAddCopyModalOpen(false);
 			void q.refetch();
 			void queryClient.invalidateQueries({
@@ -843,6 +851,7 @@ export function EditionDetail({
 		setCopyError(null);
 		setAddCopyOfferAmount('');
 		setAddCopyPurchaseAmount('');
+		setAddCopyCollectionIds([]);
 	}
 
 	function openSellModal(c: OwnedCopyDto) {
@@ -898,7 +907,7 @@ export function EditionDetail({
 		setEditOfferAmount(initialOffer);
 		editOpenedWithEmptyOfferRef.current = !initialOffer;
 		editOfferSliderHydratedRef.current = false;
-		setEditCollectionId(c.collection?.id ?? '');
+		setEditCollectionIds(c.collections.map((col) => col.id));
 
 		setEditCopyError(null);
 	}
@@ -908,7 +917,7 @@ export function EditionDetail({
 		prevEditClassificationForOfferRef.current = null;
 		editOpenedWithEmptyOfferRef.current = false;
 		editOfferSliderHydratedRef.current = false;
-		setEditCollectionId('');
+		setEditCollectionIds([]);
 		setEditCopyError(null);
 	}
 
@@ -929,9 +938,13 @@ export function EditionDetail({
 				body.offerCurrency = null;
 			}
 			const orig = q.data?.copies.find((c) => c.id === id);
-			const origCollectionId = orig?.collection?.id ?? '';
-			if (editCollectionId !== origCollectionId) {
-				body.collectionId = editCollectionId === '' ? null : editCollectionId;
+			const origIds = [...(orig?.collections ?? []).map((c) => c.id)].sort();
+			const nextIds = [...editCollectionIds].sort();
+			const same =
+				origIds.length === nextIds.length &&
+				origIds.every((v, i) => v === nextIds[i]);
+			if (!same) {
+				body.collectionIds = editCollectionIds;
 			}
 			return apiFetch<OwnedCopyDto>(`/copies/${id}`, {
 				method: 'PATCH',
@@ -1035,7 +1048,9 @@ export function EditionDetail({
 		const copies = q.data?.copies;
 		if (!copies) return [];
 		const filtered = collectionScopeId
-			? copies.filter((c) => c.collection?.id === collectionScopeId)
+			? copies.filter((c) =>
+					c.collections.some((col) => col.id === collectionScopeId),
+				)
 			: copies;
 		return [...filtered].sort((a, b) => {
 			const aSold = a.soldAt != null ? 1 : 0;
@@ -1145,8 +1160,7 @@ export function EditionDetail({
 								verticalAlign: 'bottom',
 							})}
 						>
-							←{' '}
-							{scopedCollectionQ.data?.title?.trim() || 'Collection'}
+							← {scopedCollectionQ.data?.title?.trim() || 'Collection'}
 						</span>
 					</Link>
 				) : (
@@ -1209,7 +1223,9 @@ export function EditionDetail({
 								← {collectionNavName}
 							</span>
 						</Link>
-						<span className={css({ color: 'foregroundMuted', fontSize: 'sm' })}>·</span>
+						<span className={css({ color: 'foregroundMuted', fontSize: 'sm' })}>
+							·
+						</span>
 						<Link
 							to="/inventory/$editionId"
 							params={{ editionId }}
@@ -1441,7 +1457,9 @@ export function EditionDetail({
 							})}
 						>
 							<span className={cardTitleClass}>
-								{collectionScopeId ? 'Copies in this collection' : 'Your copies'}
+								{collectionScopeId
+									? 'Copies in this collection'
+									: 'Your copies'}
 							</span>
 							{copiesSorted.length > 0 && (
 								<Badge variant="default">{copiesSorted.length}</Badge>
@@ -1456,6 +1474,7 @@ export function EditionDetail({
 									setCopyError(null);
 									setAddCopyOfferAmount('');
 									setAddCopyPurchaseAmount('');
+									setAddCopyCollectionIds([]);
 									setAddCopyModalOpen(true);
 								}}
 							>
@@ -1544,14 +1563,17 @@ export function EditionDetail({
 															flexWrap: 'wrap',
 															alignItems: 'center',
 															gap: '2',
-															justifyContent: { base: 'flex-end', md: 'flex-start' },
+															justifyContent: {
+																base: 'flex-end',
+																md: 'flex-start',
+															},
 														}),
 													)}
 												>
 													<span>{c.copyClassification.replace(/_/g, ' ')}</span>
-													{c.collection ? (
-														<CollectionBadge collection={c.collection} />
-													) : null}
+													{c.collections.map((col) => (
+														<CollectionBadge key={col.id} collection={col} />
+													))}
 												</div>
 											</div>
 											<div className={copyFieldPairClass}>
@@ -1709,6 +1731,31 @@ export function EditionDetail({
 											className={textInputClass}
 										/>
 									</div>
+								</div>
+
+								<div className={css({ mt: '3' })}>
+									<CollectionsMultiCombobox
+										id="add-copy-collections"
+										label={
+											<>
+												Collections{' '}
+												<span
+													className={css({
+														color: 'foregroundMuted',
+														fontWeight: 'normal',
+													})}
+												>
+													(optional)
+												</span>
+											</>
+										}
+										collections={collectionsQuery.data ?? []}
+										valueIds={addCopyCollectionIds}
+										onValueChange={setAddCopyCollectionIds}
+										disabled={collectionsQuery.isLoading}
+										placeholder="Add to collections…"
+										portalContainer={addCopyDialogPopupRef}
+									/>
 								</div>
 
 								{(e.snapshot || e.priceChartingProductId) && (
@@ -1948,22 +1995,16 @@ export function EditionDetail({
 										portalContainer={editCopyDialogPopupRef}
 									/>
 								</div>
-								<div>
-									<Label htmlFor="edit-collection">Collection</Label>
-									<select
-										id="edit-collection"
-										className={inputClass}
-										value={editCollectionId}
-										onChange={(ev) => setEditCollectionId(ev.target.value)}
-									>
-										<option value="">None</option>
-										{(collectionsQuery.data ?? []).map((col) => (
-											<option key={col.id} value={col.id}>
-												{col.title}
-											</option>
-										))}
-									</select>
-								</div>
+								<CollectionsMultiCombobox
+									id="edit-collection"
+									label="Collections"
+									collections={collectionsQuery.data ?? []}
+									valueIds={editCollectionIds}
+									onValueChange={setEditCollectionIds}
+									disabled={collectionsQuery.isLoading}
+									placeholder="Add to collections…"
+									portalContainer={editCopyDialogPopupRef}
+								/>
 								<div>
 									<Label htmlFor="edit-notes">Notes (optional)</Label>
 									<input

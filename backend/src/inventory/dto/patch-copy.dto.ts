@@ -1,6 +1,6 @@
 import { CopyClassification } from "@prisma/client";
 import {
-	Allow,
+	IsArray,
 	IsDateString,
 	IsEnum,
 	IsNumberString,
@@ -8,7 +8,6 @@ import {
 	IsString,
 	IsUUID,
 	MaxLength,
-	ValidateIf,
 } from "class-validator";
 
 export class PatchCopyDto {
@@ -56,9 +55,9 @@ export class PatchCopyDto {
 	@IsDateString()
 	soldAt?: string | null;
 
+	/** When set, replaces all collection assignments for this copy (order not preserved). */
 	@IsOptional()
-	@Allow()
-	@ValidateIf((o: PatchCopyDto) => o.collectionId !== undefined && o.collectionId !== null)
-	@IsUUID("4")
-	collectionId?: string | null;
+	@IsArray()
+	@IsUUID("4", { each: true })
+	collectionIds?: string[];
 }

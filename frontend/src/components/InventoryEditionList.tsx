@@ -27,13 +27,45 @@ function classificationLabel(c: string) {
 	return c.replace(/_/g, ' ');
 }
 
+/** Normalize list-row copy payload (m2m `collections` or legacy single `collection`). */
+function collectionsForListCopy(
+	row: EditionListActiveCopyDto & {
+		collection?: GameCollectionSummaryDto | null;
+	},
+): GameCollectionSummaryDto[] {
+	if (Array.isArray(row.collections) && row.collections.length > 0) {
+		return row.collections;
+	}
+	if (row.collection) {
+		return [row.collection];
+	}
+	return [];
+}
+
 /** Distinct collections assigned to any of the listed copy rows (stable order by title). */
 function distinctCollectionsFromCopies(
 	copies: EditionListActiveCopyDto[],
 ): GameCollectionSummaryDto[] {
 	const byId = new Map<string, GameCollectionSummaryDto>();
 	for (const row of copies) {
-		if (row.collection) byId.set(row.collection.id, row.collection);
+		for (const col of collectionsForListCopy(row)) {
+			byId.set(col.id, col);
+		}
+	}
+	return [...byId.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/** Edition-level tags: server union across all copies plus any from list rows (deduped). */
+function editionCollectionTagsForList(
+	e: Pick<GameEditionDto, 'shelfCollections'>,
+	copies: EditionListActiveCopyDto[],
+): GameCollectionSummaryDto[] {
+	const byId = new Map<string, GameCollectionSummaryDto>();
+	for (const col of e.shelfCollections ?? []) {
+		byId.set(col.id, col);
+	}
+	for (const col of distinctCollectionsFromCopies(copies)) {
+		byId.set(col.id, col);
 	}
 	return [...byId.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -197,7 +229,7 @@ export function InventoryEditionList({
 				{editions.map((e) => {
 					const copies = e.activeCopies ?? [];
 					const n = copies.length;
-					const editionCollections = distinctCollectionsFromCopies(copies);
+					const editionCollections = editionCollectionTagsForList(e, copies);
 					const thumbSrc = editionCoverSrc(
 						e.id,
 						e.coverFetchedAt ?? null,
@@ -262,7 +294,6 @@ export function InventoryEditionList({
 														gap: '2',
 														mt: '2',
 													})}
-													aria-label="Collections for this title"
 												>
 													<span
 														className={css({
@@ -312,12 +343,10 @@ export function InventoryEditionList({
 												copyClassRowClass,
 											)}
 										>
-											<span>
-												{classificationLabel(row.copyClassification)}
-											</span>
-											{row.collection ? (
-												<CollectionBadge collection={row.collection} />
-											) : null}
+											<span>{classificationLabel(row.copyClassification)}</span>
+											{collectionsForListCopy(row).map((col) => (
+												<CollectionBadge key={col.id} collection={col} />
+											))}
 											{row.soldAt ? (
 												<span
 													className={css({

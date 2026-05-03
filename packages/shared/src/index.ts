@@ -135,8 +135,8 @@ export type EditionListActiveCopyDto = {
 	fmvCents: number | null;
 	offerAmount: string | null;
 	offerCurrency: string | null;
-	/** At most one collection per owned copy */
-	collection: GameCollectionSummaryDto | null;
+	/** Shelf collections this copy belongs to (may be multiple). */
+	collections: GameCollectionSummaryDto[];
 	/** ISO date-only or datetime when sold; null while still in inventory */
 	soldAt: string | null;
 };
@@ -158,6 +158,11 @@ export type GameEditionDto = {
 	copyCount?: number;
 	/** Set on GET /editions: per-row copies (unsold only except collection filter may include sold) */
 	activeCopies?: EditionListActiveCopyDto[];
+	/**
+	 * Distinct collections any copy of this edition belongs to (sold or unsold).
+	 * Used so the inventory list can show tags even when list rows only include unsold copies.
+	 */
+	shelfCollections?: GameCollectionSummaryDto[];
 };
 
 export type OwnedCopyDto = {
@@ -173,7 +178,7 @@ export type OwnedCopyDto = {
 	soldAmount: string | null;
 	soldCurrency: string | null;
 	soldAt: string | null;
-	collection: GameCollectionSummaryDto | null;
+	collections: GameCollectionSummaryDto[];
 };
 
 /** GET /api/product-pricing — live PriceCharting prices for a product id (add flow) */

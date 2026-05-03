@@ -3,6 +3,7 @@ import {
 	type BulkRefreshMarketResultDto,
 	type FetchAllCoversResultDto,
 	type FetchEditionCoverResponseDto,
+	type GameCollectionSummaryDto,
 	coerceCollectionBadgeColor,
 	findBestPriceChartingConsoleIdFromRows,
 	type DashboardSummaryDto,
@@ -231,13 +232,23 @@ export class InventoryService {
 	) {
 		/** Rows: unsold inventory, or every copy assigned to this collection (including sold). */
 		const copyRowsWhere: Prisma.OwnedCopyWhereInput = gameCollectionId
-			? { collectionId: gameCollectionId }
+			? {
+					collectionLinks: { some: { collectionId: gameCollectionId } },
+				}
 			: { soldAt: null };
 		/** Which editions appear: any copy assigned to this collection (sold or unsold) */
 		const where: Prisma.GameEditionWhereInput = {
 			...(priceChartingConsoleId ? { priceChartingConsoleId } : {}),
 			...(gameCollectionId
-				? { copies: { some: { collectionId: gameCollectionId } } }
+				? {
+						copies: {
+							some: {
+								collectionLinks: {
+									some: { collectionId: gameCollectionId },
+								},
+							},
+						},
+					}
 				: {}),
 		};
 		const editions = await this.prisma.gameEdition.findMany({
@@ -256,18 +267,63 @@ export class InventoryService {
 						offerAmount: true,
 						offerCurrency: true,
 						soldAt: true,
-						collection: {
+						collectionLinks: {
 							select: {
-								id: true,
-								title: true,
-								description: true,
-								badgeColor: true,
+								collection: {
+									select: {
+										id: true,
+										title: true,
+										description: true,
+										badgeColor: true,
+									},
+								},
 							},
 						},
 					},
 				},
 			},
 		});
+
+		const editionIds = editions.map((e) => e.id);
+		const shelfCollectionsByEditionId = new Map<
+			string,
+			Map<string, GameCollectionSummaryDto>
+		>();
+		if (editionIds.length > 0) {
+			const copiesWithAnyCollection = await this.prisma.ownedCopy.findMany({
+				where: {
+					editionId: { in: editionIds },
+					collectionLinks: { some: {} },
+				},
+				select: {
+					editionId: true,
+					collectionLinks: {
+						select: {
+							collection: {
+								select: {
+									id: true,
+									title: true,
+									description: true,
+									badgeColor: true,
+								},
+							},
+						},
+					},
+				},
+			});
+			for (const row of copiesWithAnyCollection) {
+				let byId = shelfCollectionsByEditionId.get(row.editionId);
+				if (!byId) {
+					byId = new Map();
+					shelfCollectionsByEditionId.set(row.editionId, byId);
+				}
+				for (const l of row.collectionLinks ?? []) {
+					const s = this.collectionToSummary(l.collection);
+					if (s) byId.set(s.id, s);
+				}
+			}
+		}
+
 		return editions.map((e) => {
 			const base = this.editionToDto(e);
 			const snap = e.snapshot;
@@ -287,10 +343,16 @@ export class InventoryService {
 					: null,
 				offerAmount: decStr(c.offerAmount),
 				offerCurrency: c.offerCurrency,
-				collection: this.collectionToSummary(c.collection),
+				collections: (c.collectionLinks ?? []).map((l) =>
+					this.collectionToSummary(l.collection)!,
+				),
 				soldAt: c.soldAt?.toISOString() ?? null,
 			}));
-			return { ...base, activeCopies };
+			const shelfMap = shelfCollectionsByEditionId.get(e.id);
+			const shelfCollections = shelfMap
+				? [...shelfMap.values()].sort((a, b) => a.title.localeCompare(b.title))
+				: [];
+			return { ...base, activeCopies, shelfCollections };
 		});
 	}
 
@@ -312,12 +374,20 @@ export class InventoryService {
 	): Promise<DashboardSummaryDto> {
 		/** Library: unsold only. Collection shelf: every copy tagged to the collection (sold or not) so FMV matches the list. */
 		const copyWhere: Prisma.OwnedCopyWhereInput = gameCollectionId
-			? { collectionId: gameCollectionId }
+			? {
+					collectionLinks: { some: { collectionId: gameCollectionId } },
+				}
 			: { soldAt: null };
 
 		const soldWhere: Prisma.OwnedCopyWhereInput = {
 			soldAt: { not: null },
-			...(gameCollectionId ? { collectionId: gameCollectionId } : {}),
+			...(gameCollectionId
+				? {
+						collectionLinks: {
+							some: { collectionId: gameCollectionId },
+						},
+					}
+				: {}),
 		};
 
 		const [copiesForMetrics, soldRows] = await Promise.all([
@@ -336,7 +406,15 @@ export class InventoryService {
 		/** Match listEditions: editions with any copy in this collection. */
 		const editionWhere: Prisma.GameEditionWhereInput | undefined =
 			gameCollectionId
-				? { copies: { some: { collectionId: gameCollectionId } } }
+				? {
+						copies: {
+							some: {
+								collectionLinks: {
+									some: { collectionId: gameCollectionId },
+								},
+							},
+						},
+					}
 				: undefined;
 
 		const [editionRows, editionCount] = await Promise.all([
@@ -543,12 +621,16 @@ export class InventoryService {
 				copies: {
 					orderBy: { id: "asc" },
 					include: {
-						collection: {
-							select: {
-								id: true,
-								title: true,
-								description: true,
-								badgeColor: true,
+						collectionLinks: {
+							include: {
+								collection: {
+									select: {
+										id: true,
+										title: true,
+										description: true,
+										badgeColor: true,
+									},
+								},
 							},
 						},
 					},
@@ -591,10 +673,15 @@ export class InventoryService {
 		const coverStored =
 			await this.coverArt.ensureCoverImageStored(priceChartingProductId);
 
-		const initialCollectionId =
-			(dto.initialCopyCollectionId ?? "").trim() || null;
-		if (initialCollectionId) {
-			await this.ensureCollection(initialCollectionId);
+		const initialCollectionIds = [
+			...new Set(
+				(dto.initialCopyCollectionIds ?? [])
+					.map((x) => String(x).trim())
+					.filter(Boolean),
+			),
+		];
+		for (const colId of initialCollectionIds) {
+			await this.ensureCollection(colId);
 		}
 
 		const edition = await this.prisma.$transaction(async (tx) => {
@@ -625,7 +712,7 @@ export class InventoryService {
 
 			const purchaseAmt = dto.initialPurchaseAmount?.trim();
 			const offerAmt = dto.initialOfferAmount?.trim();
-			await tx.ownedCopy.create({
+			const createdCopy = await tx.ownedCopy.create({
 				data: {
 					editionId,
 					copyClassification:
@@ -639,11 +726,18 @@ export class InventoryService {
 					offerCurrency: offerAmt
 						? (dto.initialOfferCurrency?.trim() || "USD")
 						: null,
-					...(initialCollectionId
-						? { collectionId: initialCollectionId }
-						: {}),
 				},
+				select: { id: true },
 			});
+			if (initialCollectionIds.length) {
+				await tx.ownedCopyCollection.createMany({
+					data: initialCollectionIds.map((collectionId) => ({
+						copyId: createdCopy.id,
+						collectionId,
+					})),
+					skipDuplicates: true,
+				});
+			}
 			return { id: editionId };
 		});
 
@@ -697,28 +791,56 @@ export class InventoryService {
 
 	async createCopy(editionId: string, dto: CreateCopyDto) {
 		await this.ensureEdition(editionId);
-		const created = await this.prisma.ownedCopy.create({
-			data: {
-				editionId,
-				copyClassification: dto.copyClassification,
-				classificationNotes: dto.classificationNotes ?? null,
-				purchaseAmount: d(dto.purchaseAmount ?? undefined),
-				purchaseCurrency: dto.purchaseCurrency ?? null,
-				purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : null,
-				offerAmount: d(dto.offerAmount ?? undefined),
-				offerCurrency: dto.offerCurrency ?? null,
-			},
-			select: { id: true },
+		const collectionIds = [
+			...new Set(
+				(dto.collectionIds ?? [])
+					.map((x) => String(x).trim())
+					.filter(Boolean),
+			),
+		];
+		for (const colId of collectionIds) {
+			await this.ensureCollection(colId);
+		}
+
+		const created = await this.prisma.$transaction(async (tx) => {
+			const row = await tx.ownedCopy.create({
+				data: {
+					editionId,
+					copyClassification: dto.copyClassification,
+					classificationNotes: dto.classificationNotes ?? null,
+					purchaseAmount: d(dto.purchaseAmount ?? undefined),
+					purchaseCurrency: dto.purchaseCurrency ?? null,
+					purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : null,
+					offerAmount: d(dto.offerAmount ?? undefined),
+					offerCurrency: dto.offerCurrency ?? null,
+				},
+				select: { id: true },
+			});
+			if (collectionIds.length) {
+				await tx.ownedCopyCollection.createMany({
+					data: collectionIds.map((collectionId) => ({
+						copyId: row.id,
+						collectionId,
+					})),
+					skipDuplicates: true,
+				});
+			}
+			return row;
 		});
+
 		const copy = await this.prisma.ownedCopy.findUniqueOrThrow({
 			where: { id: created.id },
 			include: {
-				collection: {
-					select: {
-						id: true,
-						title: true,
-						description: true,
-						badgeColor: true,
+				collectionLinks: {
+					include: {
+						collection: {
+							select: {
+								id: true,
+								title: true,
+								description: true,
+								badgeColor: true,
+							},
+						},
 					},
 				},
 			},
@@ -747,28 +869,57 @@ export class InventoryService {
 		if (dto.soldCurrency !== undefined) data.soldCurrency = dto.soldCurrency;
 		if (dto.soldAt !== undefined)
 			data.soldAt = dto.soldAt ? new Date(dto.soldAt) : null;
-		if (dto.collectionId !== undefined) {
-			if (dto.collectionId === null) {
-				data.collection = { disconnect: true };
-			} else {
-				await this.ensureCollection(dto.collectionId);
-				data.collection = { connect: { id: dto.collectionId } };
+
+		const collectionIds =
+			dto.collectionIds !== undefined
+				? [
+						...new Set(
+							dto.collectionIds
+								.map((x) => String(x).trim())
+								.filter(Boolean),
+						),
+					]
+				: undefined;
+		if (collectionIds !== undefined) {
+			for (const colId of collectionIds) {
+				await this.ensureCollection(colId);
 			}
 		}
 
-		await this.prisma.ownedCopy.update({
-			where: { id: copyId },
-			data,
+		await this.prisma.$transaction(async (tx) => {
+			if (Object.keys(data).length > 0) {
+				await tx.ownedCopy.update({
+					where: { id: copyId },
+					data,
+				});
+			}
+			if (collectionIds !== undefined) {
+				await tx.ownedCopyCollection.deleteMany({ where: { copyId } });
+				if (collectionIds.length) {
+					await tx.ownedCopyCollection.createMany({
+						data: collectionIds.map((collectionId) => ({
+							copyId,
+							collectionId,
+						})),
+						skipDuplicates: true,
+					});
+				}
+			}
 		});
+
 		const copy = await this.prisma.ownedCopy.findUniqueOrThrow({
 			where: { id: copyId },
 			include: {
-				collection: {
-					select: {
-						id: true,
-						title: true,
-						description: true,
-						badgeColor: true,
+				collectionLinks: {
+					include: {
+						collection: {
+							select: {
+								id: true,
+								title: true,
+								description: true,
+								badgeColor: true,
+							},
+						},
 					},
 				},
 			},
@@ -1393,14 +1544,19 @@ export class InventoryService {
 
 	private copyToDto(
 		c: OwnedCopy & {
-			collection?: {
-				id: string;
-				title: string;
-				description: string | null;
-				badgeColor: string;
-			} | null;
+			collectionLinks?: {
+				collection: {
+					id: string;
+					title: string;
+					description: string | null;
+					badgeColor: string;
+				};
+			}[];
 		},
 	) {
+		const collections = (c.collectionLinks ?? []).map((l) =>
+			this.collectionToSummary(l.collection)!,
+		);
 		return {
 			id: c.id,
 			editionId: c.editionId,
@@ -1414,7 +1570,7 @@ export class InventoryService {
 			soldAmount: decStr(c.soldAmount),
 			soldCurrency: c.soldCurrency,
 			soldAt: c.soldAt?.toISOString() ?? null,
-			collection: this.collectionToSummary(c.collection ?? null),
+			collections,
 		};
 	}
 

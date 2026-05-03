@@ -1,11 +1,13 @@
 import { CopyClassification } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
+	IsArray,
 	IsDateString,
 	IsEnum,
 	IsNumberString,
 	IsOptional,
 	IsString,
+	IsUUID,
 	MaxLength,
 } from "class-validator";
 
@@ -39,4 +41,9 @@ export class CreateCopyDto {
 	@IsString()
 	@MaxLength(3)
 	offerCurrency?: string | null;
+
+	@IsOptional()
+	@IsArray()
+	@IsUUID("4", { each: true })
+	collectionIds?: string[];
 }

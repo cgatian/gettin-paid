@@ -14,6 +14,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { Camera } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { css, cx } from 'styled-system/css';
+import { CollectionsMultiCombobox } from '#/components/CollectionsMultiCombobox';
 import { Button, buttonVariants } from '#/components/ui/Button';
 import {
 	Card,
@@ -21,7 +22,7 @@ import {
 	cardHeader,
 	formGroupClass,
 } from '#/components/ui/Card';
-import { Field, Input, inputClass, Select } from '#/components/ui/Input';
+import { Field, Input, Select } from '#/components/ui/Input';
 import { apiFetch } from '#/lib/api';
 import { formatPcCents } from '#/lib/money';
 
@@ -390,7 +391,7 @@ function AddGame() {
 	const [publisher, setPublisher] = useState('');
 	const [copyClassification, setCopyClassification] =
 		useState<CopyClassificationTag>(CopyClassification.CIB);
-	const [copyCollectionId, setCopyCollectionId] = useState('');
+	const [copyCollectionIds, setCopyCollectionIds] = useState<string[]>([]);
 	const [copyNotes, setCopyNotes] = useState('');
 	const [purchaseAmount, setPurchaseAmount] = useState('');
 	const [offerAmount, setOfferAmount] = useState('');
@@ -500,7 +501,7 @@ function AddGame() {
 		setPriceChartingConsoleId(POPULAR_PRICECHARTING_CONSOLE_IDS[0] ?? 'G8');
 		setPublisher('');
 		setCopyClassification(CopyClassification.CIB);
-		setCopyCollectionId('');
+		setCopyCollectionIds([]);
 		setCopyNotes('');
 		setPurchaseAmount('');
 		setOfferAmount('');
@@ -530,8 +531,8 @@ function AddGame() {
 					syncPriceCharting: true,
 					initialCopyClassification: copyClassification,
 					initialCopyNotes: copyNotes.trim() || undefined,
-					...(copyCollectionId.trim()
-						? { initialCopyCollectionId: copyCollectionId.trim() }
+					...(copyCollectionIds.length
+						? { initialCopyCollectionIds: copyCollectionIds }
 						: {}),
 					...(purchaseAmount.trim()
 						? { initialPurchaseAmount: purchaseAmount.trim() }
@@ -976,10 +977,11 @@ function AddGame() {
 										/>
 									</Field>
 
-									<Field
+									<CollectionsMultiCombobox
+										id="add-game-collections"
 										label={
 											<>
-												Collection{' '}
+												Collections{' '}
 												<span
 													className={css({
 														color: 'foregroundMuted',
@@ -990,23 +992,12 @@ function AddGame() {
 												</span>
 											</>
 										}
-										htmlFor="add-copy-collection"
-									>
-										<select
-											id="add-copy-collection"
-											className={inputClass}
-											value={copyCollectionId}
-											onChange={(e) => setCopyCollectionId(e.target.value)}
-											disabled={collectionsQuery.isLoading}
-										>
-											<option value="">None</option>
-											{(collectionsQuery.data ?? []).map((col) => (
-												<option key={col.id} value={col.id}>
-													{col.title}
-												</option>
-											))}
-										</select>
-									</Field>
+										collections={collectionsQuery.data ?? []}
+										valueIds={copyCollectionIds}
+										onValueChange={setCopyCollectionIds}
+										disabled={collectionsQuery.isLoading}
+										placeholder="Add to collections…"
+									/>
 
 									<Field label="Notes (optional)" htmlFor="copy-notes">
 										<Input

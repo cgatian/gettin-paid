@@ -185,7 +185,7 @@ export function DashboardSummaryPanel({
 			</Card>
 
 			<Card className={metricCardClass}>
-				<h2 className={cardTitleClass}>Sold amount</h2>
+				<h2 className={cardTitleClass}>Earnings</h2>
 				<div className={metricHeroClass}>
 					<p className={cx(bigNumberClass, css({ mb: '0' }))}>
 						{formatPcCents(d.soldTotalUsdCents ?? 0)}
