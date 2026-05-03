@@ -1,49 +1,49 @@
-import { Link } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
-import type { ComponentProps } from "react";
-import { css } from "styled-system/css";
+import { Link } from '@tanstack/react-router';
+import type { LucideIcon } from 'lucide-react';
+import type { ComponentProps } from 'react';
+import { css } from 'styled-system/css';
 
 const navLinkClass = css({
-	display: "flex",
-	alignItems: "center",
-	gap: "3",
-	px: "3",
-	py: "2",
-	borderRadius: "card",
-	fontSize: "base",
-	color: "foregroundMuted",
-	fontWeight: "normal",
-	cursor: "pointer",
-	textDecoration: "none",
-	transition: "background-color 120ms ease, color 120ms ease",
-	userSelect: "none",
+	display: 'flex',
+	alignItems: 'center',
+	gap: '3',
+	px: '3',
+	py: '2',
+	borderRadius: 'card',
+	fontSize: 'base',
+	color: 'foregroundMuted',
+	fontWeight: 'normal',
+	cursor: 'pointer',
+	textDecoration: 'none',
+	transition: 'background-color 120ms ease, color 120ms ease',
+	userSelect: 'none',
 	_hover: {
-		bg: "navHover",
-		color: "foreground",
+		bg: 'navHover',
+		color: 'foreground',
 	},
 	'&[data-status="active"]': {
-		bg: "navActive",
-		color: "foreground",
-		fontWeight: "medium",
+		bg: 'navActive',
+		color: 'foreground',
+		fontWeight: 'medium',
 	},
 });
 
 const externalLinkClass = css({
-	display: "flex",
-	alignItems: "center",
-	gap: "3",
-	px: "3",
-	py: "2",
-	borderRadius: "card",
-	fontSize: "base",
-	color: "foregroundMuted",
-	fontWeight: "normal",
-	cursor: "pointer",
-	textDecoration: "none",
-	transition: "background-color 120ms ease, color 120ms ease",
+	display: 'flex',
+	alignItems: 'center',
+	gap: '3',
+	px: '3',
+	py: '2',
+	borderRadius: 'card',
+	fontSize: 'base',
+	color: 'foregroundMuted',
+	fontWeight: 'normal',
+	cursor: 'pointer',
+	textDecoration: 'none',
+	transition: 'background-color 120ms ease, color 120ms ease',
 	_hover: {
-		bg: "navHover",
-		color: "foreground",
+		bg: 'navHover',
+		color: 'foreground',
 	},
 });
 
@@ -53,7 +53,7 @@ interface NavItemProps {
 	icon: LucideIcon;
 	external?: boolean;
 	/** Passed to TanStack Router `Link` — use `{ exact: true }` so `/inventory` does not match `/inventory/add`. */
-	activeOptions?: ComponentProps<typeof Link>["activeOptions"];
+	activeOptions?: ComponentProps<typeof Link>['activeOptions'];
 	/** e.g. close mobile drawer after navigation */
 	onNavigate?: () => void;
 }

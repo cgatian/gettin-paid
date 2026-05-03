@@ -1,14 +1,14 @@
-export * from "./pricecharting-console-ids.js";
-export * from "./pricecharting-console-resolve.js";
-export * from "./pricecharting-product-url.js";
+export * from './pricecharting-console-ids.js';
+export * from './pricecharting-console-resolve.js';
+export * from './pricecharting-product-url.js';
 
 export const CopyClassification = {
-	SEALED: "SEALED",
-	CIB: "CIB",
-	INCOMPLETE_BOX: "INCOMPLETE_BOX",
-	LOOSE: "LOOSE",
-	GRADED_SLAB: "GRADED_SLAB",
-	OTHER: "OTHER",
+	SEALED: 'SEALED',
+	CIB: 'CIB',
+	INCOMPLETE_BOX: 'INCOMPLETE_BOX',
+	LOOSE: 'LOOSE',
+	GRADED_SLAB: 'GRADED_SLAB',
+	OTHER: 'OTHER',
 } as const;
 
 export type CopyClassification =
@@ -16,10 +16,10 @@ export type CopyClassification =
 
 /** Maps OwnedCopy.classification → PriceCharting snapshot penny column (conceptual) */
 export const classificationToSnapshotField = {
-	SEALED: "newPrice",
-	CIB: "cibPrice",
-	LOOSE: "loosePrice",
-	GRADED_SLAB: "gradedPrice",
+	SEALED: 'newPrice',
+	CIB: 'cibPrice',
+	LOOSE: 'loosePrice',
+	GRADED_SLAB: 'gradedPrice',
 	INCOMPLETE_BOX: null,
 	OTHER: null,
 } as const;
@@ -33,14 +33,14 @@ export type MoneyDto = {
 /** Short product row from GET /api/products (list search) */
 export type PriceChartingProductListItem = {
 	id?: string;
-	"product-name"?: string;
-	"console-name"?: string;
+	'product-name'?: string;
+	'console-name'?: string;
 };
 
 export type PriceChartingProductsApi = {
 	status?: string;
 	products?: PriceChartingProductListItem[];
-	"error-message"?: string;
+	'error-message'?: string;
 };
 
 /** One option from GET /api/product-suggestions (PriceCharting /api/products search) */
@@ -53,31 +53,31 @@ export type PriceChartingProductSuggestionDto = {
 export type PriceChartingProductApi = {
 	status?: string;
 	id?: string;
-	"product-name"?: string;
-	"console-name"?: string;
+	'product-name'?: string;
+	'console-name'?: string;
 	upc?: string;
 	genre?: string;
-	"release-date"?: string;
+	'release-date'?: string;
 	asin?: string;
 	epid?: string;
-	"loose-price"?: number;
-	"cib-price"?: number;
-	"new-price"?: number;
-	"graded-price"?: number;
-	"box-only-price"?: number;
-	"manual-only-price"?: number;
-	"gamestop-price"?: number;
-	"bgs-10-price"?: number;
-	"condition-17-price"?: number;
-	"condition-18-price"?: number;
-	"retail-loose-buy"?: number;
-	"retail-loose-sell"?: number;
-	"retail-cib-buy"?: number;
-	"retail-cib-sell"?: number;
-	"retail-new-buy"?: number;
-	"retail-new-sell"?: number;
-	"sales-volume"?: number;
-	"error-message"?: string;
+	'loose-price'?: number;
+	'cib-price'?: number;
+	'new-price'?: number;
+	'graded-price'?: number;
+	'box-only-price'?: number;
+	'manual-only-price'?: number;
+	'gamestop-price'?: number;
+	'bgs-10-price'?: number;
+	'condition-17-price'?: number;
+	'condition-18-price'?: number;
+	'retail-loose-buy'?: number;
+	'retail-loose-sell'?: number;
+	'retail-cib-buy'?: number;
+	'retail-cib-sell'?: number;
+	'retail-new-buy'?: number;
+	'retail-new-sell'?: number;
+	'sales-volume'?: number;
+	'error-message'?: string;
 };
 
 /** One unsold copy on the inventory list, with condition-based FMV and optional proposed price */
@@ -251,7 +251,7 @@ export type BulkImportResultDto = {
 export function snapshotFmvCentsForClassification(
 	snap: Pick<
 		PriceChartingSnapshotDto,
-		"loosePrice" | "cibPrice" | "newPrice" | "gradedPrice"
+		'loosePrice' | 'cibPrice' | 'newPrice' | 'gradedPrice'
 	>,
 	classification: CopyClassification,
 ): number | null {

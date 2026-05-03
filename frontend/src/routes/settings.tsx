@@ -4,16 +4,16 @@ import type {
 	FetchAllCoversResultDto,
 	FetchEditionCoverResponseDto,
 	GameEditionDto,
-} from "@gettin-paid/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
-import { css } from "styled-system/css";
-import { Button } from "#/components/ui/Button";
-import { Card, cardBody, cardHeader } from "#/components/ui/Card";
-import { apiFetch, apiFetchBlob, apiFetchPost } from "#/lib/api";
+} from '@gettin-paid/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createFileRoute } from '@tanstack/react-router';
+import { useRef, useState } from 'react';
+import { css } from 'styled-system/css';
+import { Button } from '#/components/ui/Button';
+import { Card, cardBody, cardHeader } from '#/components/ui/Card';
+import { apiFetch, apiFetchBlob, apiFetchPost } from '#/lib/api';
 
-export const Route = createFileRoute("/settings")({ component: Settings });
+export const Route = createFileRoute('/settings')({ component: Settings });
 
 /** Match backend COVER_SCRAPE_MIN_INTERVAL_MS — pause between cover scrapes to avoid PriceCharting 403s. */
 const COVER_FETCH_THROTTLE_MS = 2000;
@@ -41,51 +41,51 @@ function editionsNeedingCoverFetch(all: GameEditionDto[]) {
 	return { skippedHadCover, missingPriceChartingId, toFetch };
 }
 
-const pageClass = css({ p: "6", maxWidth: "700px" });
+const pageClass = css({ p: '6', maxWidth: '700px' });
 
 const pageTitleClass = css({
-	fontSize: "2xl",
-	fontWeight: "normal",
-	color: "foreground",
-	mb: "5",
-	letterSpacing: "-0.01em",
+	fontSize: '2xl',
+	fontWeight: 'normal',
+	color: 'foreground',
+	mb: '5',
+	letterSpacing: '-0.01em',
 });
 
 const cardTitleClass = css({
-	fontSize: "base",
-	fontWeight: "medium",
-	color: "foreground",
-	margin: "0",
+	fontSize: 'base',
+	fontWeight: 'medium',
+	color: 'foreground',
+	margin: '0',
 });
 
 const descriptionClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	margin: "0 0 16px 0",
-	lineHeight: "1.6",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	margin: '0 0 16px 0',
+	lineHeight: '1.6',
 });
 
 const resultBoxClass = css({
-	mt: "3",
-	p: "3",
-	borderRadius: "card",
-	bg: "background",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "border",
-	fontSize: "sm",
+	mt: '3',
+	p: '3',
+	borderRadius: 'card',
+	bg: 'background',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	borderColor: 'border',
+	fontSize: 'sm',
 });
 
 const errorBoxClass = css({
-	mt: "3",
-	p: "3",
-	borderRadius: "card",
-	bg: "rgba(192,57,43,0.08)",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "rgba(192,57,43,0.2)",
-	fontSize: "sm",
-	color: "danger",
+	mt: '3',
+	p: '3',
+	borderRadius: 'card',
+	bg: 'rgba(192,57,43,0.08)',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	borderColor: 'rgba(192,57,43,0.2)',
+	fontSize: 'sm',
+	color: 'danger',
 });
 
 function Settings() {
@@ -110,7 +110,7 @@ function Settings() {
 	} | null>(null);
 
 	const editionsQuery = useQuery({
-		queryKey: ["editions", "all"],
+		queryKey: ['editions', 'all'],
 		queryFn: () => apiFetch<GameEditionDto[]>(`/editions`),
 	});
 
@@ -128,12 +128,12 @@ function Settings() {
 			}
 			const { skippedHadCover, missingPriceChartingId, toFetch } =
 				editionsNeedingCoverFetch(editions);
-			const failures: FetchAllCoversResultDto["failures"] =
+			const failures: FetchAllCoversResultDto['failures'] =
 				missingPriceChartingId.map((e) => ({
 					editionId: e.id,
 					title: e.title,
 					upc: e.upc,
-					message: "No PriceCharting product id",
+					message: 'No PriceCharting product id',
 				}));
 			let ok = 0;
 			let skipped = skippedHadCover.length;
@@ -178,8 +178,8 @@ function Settings() {
 		},
 		onSuccess: (r) => {
 			setCoversBulkResult(r);
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["edition"] });
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['edition'] });
 		},
 		onSettled: () => {
 			setCoversProgress(null);
@@ -197,14 +197,14 @@ function Settings() {
 					failures: [],
 				} satisfies BulkRefreshMarketResultDto;
 			}
-			const failures: BulkRefreshMarketResultDto["failures"] = [];
+			const failures: BulkRefreshMarketResultDto['failures'] = [];
 			let ok = 0;
 			for (let i = 0; i < editions.length; i++) {
 				const e = editions[i];
 				setBulkProgress({ current: i + 1, total });
 				try {
 					await apiFetch(`/editions/${e.id}/refresh-market`, {
-						method: "POST",
+						method: 'POST',
 					});
 					ok++;
 				} catch (err) {
@@ -225,8 +225,8 @@ function Settings() {
 		},
 		onSuccess: (r) => {
 			setBulkResult(r);
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 		},
 		onSettled: () => {
 			setBulkProgress(null);
@@ -240,17 +240,17 @@ function Settings() {
 	async function handleExport() {
 		setExportLoading(true);
 		try {
-			const blob = await apiFetchBlob("/export");
+			const blob = await apiFetchBlob('/export');
 			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
+			const a = document.createElement('a');
 			a.href = url;
-			a.download = "inventory.csv";
+			a.download = 'inventory.csv';
 			document.body.appendChild(a);
 			a.click();
 			document.body.removeChild(a);
 			URL.revokeObjectURL(url);
 		} catch (err) {
-			console.error("Export failed", err);
+			console.error('Export failed', err);
 		} finally {
 			setExportLoading(false);
 		}
@@ -259,20 +259,20 @@ function Settings() {
 	const importMutation = useMutation({
 		mutationFn: async (file: File) => {
 			const csv = await file.text();
-			return apiFetch<BulkImportResultDto>("/import", {
-				method: "POST",
+			return apiFetch<BulkImportResultDto>('/import', {
+				method: 'POST',
 				body: JSON.stringify({ csv }),
 			});
 		},
 		onSuccess: (result) => {
 			setImportResult(result);
 			setImportError(null);
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["edition"] });
-			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['edition'] });
+			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 		},
 		onError: (err) => {
-			setImportError(err instanceof Error ? err.message : "Import failed");
+			setImportError(err instanceof Error ? err.message : 'Import failed');
 			setImportResult(null);
 		},
 	});
@@ -283,7 +283,7 @@ function Settings() {
 		setImportResult(null);
 		setImportError(null);
 		importMutation.mutate(file);
-		e.target.value = "";
+		e.target.value = '';
 	}
 
 	return (
@@ -307,12 +307,12 @@ function Settings() {
 						disabled={exportLoading}
 						onClick={() => void handleExport()}
 					>
-						{exportLoading ? "Exporting…" : "Export CSV"}
+						{exportLoading ? 'Exporting…' : 'Export CSV'}
 					</Button>
 				</div>
 			</Card>
 
-			<div className={css({ h: "3" })} />
+			<div className={css({ h: '3' })} />
 
 			<Card>
 				<div className={cardHeader}>
@@ -328,7 +328,7 @@ function Settings() {
 						ref={fileInputRef}
 						type="file"
 						accept=".csv,text/csv"
-						style={{ display: "none" }}
+						style={{ display: 'none' }}
 						onChange={handleFileChange}
 					/>
 					<Button
@@ -338,7 +338,7 @@ function Settings() {
 						disabled={importMutation.isPending}
 						onClick={() => fileInputRef.current?.click()}
 					>
-						{importMutation.isPending ? "Importing…" : "Import CSV"}
+						{importMutation.isPending ? 'Importing…' : 'Import CSV'}
 					</Button>
 
 					{importError && <div className={errorBoxClass}>{importError}</div>}
@@ -347,31 +347,31 @@ function Settings() {
 						<div className={resultBoxClass}>
 							<p
 								className={css({
-									margin: "0 0 6px 0",
-									color: "foreground",
+									margin: '0 0 6px 0',
+									color: 'foreground',
 								})}
 							>
-								{importResult.updated} of {importResult.total}{" "}
-								{importResult.total === 1 ? "copy" : "copies"} updated
+								{importResult.updated} of {importResult.total}{' '}
+								{importResult.total === 1 ? 'copy' : 'copies'} updated
 								{importResult.failed > 0
 									? ` — ${importResult.failed} failed`
-									: ""}
+									: ''}
 								.
 							</p>
 							{importResult.failures.length > 0 && (
 								<ul
 									className={css({
-										margin: "0",
-										paddingLeft: "1.25rem",
-										color: "foregroundMuted",
+										margin: '0',
+										paddingLeft: '1.25rem',
+										color: 'foregroundMuted',
 									})}
 								>
 									{importResult.failures
 										.slice(0, 8)
-										.map((f: BulkImportResultDto["failures"][number]) => (
+										.map((f: BulkImportResultDto['failures'][number]) => (
 											<li key={`${f.rowNumber}-${f.copyId}`}>
 												Row {f.rowNumber}
-												{f.copyId ? ` (${f.copyId.slice(0, 8)}…)` : ""}:{" "}
+												{f.copyId ? ` (${f.copyId.slice(0, 8)}…)` : ''}:{' '}
 												{f.message}
 											</li>
 										))}
@@ -385,7 +385,7 @@ function Settings() {
 				</div>
 			</Card>
 
-			<div className={css({ h: "3" })} />
+			<div className={css({ h: '3' })} />
 
 			<Card>
 				<div className={cardHeader}>
@@ -399,10 +399,10 @@ function Settings() {
 					</p>
 					<div
 						className={css({
-							display: "flex",
-							flexWrap: "wrap",
-							gap: "2",
-							alignItems: "center",
+							display: 'flex',
+							flexWrap: 'wrap',
+							gap: '2',
+							alignItems: 'center',
 						})}
 					>
 						<Button
@@ -423,8 +423,8 @@ function Settings() {
 							{bulkRefresh.isPending && bulkProgress
 								? `Refreshing… ${bulkProgress.current}/${bulkProgress.total}`
 								: bulkRefresh.isPending
-									? "Refreshing…"
-									: "Refresh all prices"}
+									? 'Refreshing…'
+									: 'Refresh all prices'}
 						</Button>
 						<Button
 							type="button"
@@ -444,18 +444,18 @@ function Settings() {
 							{fetchAllCovers.isPending && coversProgress
 								? `Fetching covers… ${coversProgress.current}/${coversProgress.total}`
 								: fetchAllCovers.isPending
-									? "Fetching covers…"
-									: "Fetch all covers"}
+									? 'Fetching covers…'
+									: 'Fetch all covers'}
 						</Button>
 					</div>
 
 					{bulkRefresh.isPending && bulkProgress && (
 						<p
 							className={css({
-								fontSize: "sm",
-								color: "foregroundMuted",
-								mt: "3",
-								mb: "0",
+								fontSize: 'sm',
+								color: 'foregroundMuted',
+								mt: '3',
+								mb: '0',
 							})}
 						>
 							Refreshing market prices… {bulkProgress.current}/
@@ -466,10 +466,10 @@ function Settings() {
 					{fetchAllCovers.isPending && coversProgress && (
 						<p
 							className={css({
-								fontSize: "sm",
-								color: "foregroundMuted",
-								mt: "3",
-								mb: "0",
+								fontSize: 'sm',
+								color: 'foregroundMuted',
+								mt: '3',
+								mb: '0',
 							})}
 						>
 							Fetching covers… {coversProgress.current}/{coversProgress.total}
@@ -480,16 +480,16 @@ function Settings() {
 						<div className={errorBoxClass}>
 							<p
 								className={css({
-									margin: "0 0 6px 0",
-									fontWeight: "semibold",
+									margin: '0 0 6px 0',
+									fontWeight: 'semibold',
 								})}
 							>
 								Bulk refresh failed.
 							</p>
-							<p className={css({ margin: "0", color: "foregroundMuted" })}>
+							<p className={css({ margin: '0', color: 'foregroundMuted' })}>
 								{bulkRefresh.error instanceof Error
 									? bulkRefresh.error.message
-									: "Unknown error"}
+									: 'Unknown error'}
 							</p>
 						</div>
 					)}
@@ -498,16 +498,16 @@ function Settings() {
 						<div className={errorBoxClass}>
 							<p
 								className={css({
-									margin: "0 0 6px 0",
-									fontWeight: "semibold",
+									margin: '0 0 6px 0',
+									fontWeight: 'semibold',
 								})}
 							>
 								Fetch all covers failed.
 							</p>
-							<p className={css({ margin: "0", color: "foregroundMuted" })}>
+							<p className={css({ margin: '0', color: 'foregroundMuted' })}>
 								{fetchAllCovers.error instanceof Error
 									? fetchAllCovers.error.message
-									: "Unknown error"}
+									: 'Unknown error'}
 							</p>
 						</div>
 					)}
@@ -516,31 +516,31 @@ function Settings() {
 						<div className={resultBoxClass}>
 							<p
 								className={css({
-									margin: "0 0 6px 0",
-									color: "foreground",
+									margin: '0 0 6px 0',
+									color: 'foreground',
 								})}
 							>
-								Market snapshots updated: {bulkResult.ok} of {bulkResult.total}{" "}
+								Market snapshots updated: {bulkResult.ok} of {bulkResult.total}{' '}
 								succeeded
 								{bulkResult.failed > 0
 									? ` (${bulkResult.failed} could not be refreshed)`
-									: ""}
+									: ''}
 								.
 							</p>
 							{bulkResult.failures.length > 0 && (
 								<ul
 									className={css({
-										margin: "0",
-										paddingLeft: "1.25rem",
-										color: "foregroundMuted",
+										margin: '0',
+										paddingLeft: '1.25rem',
+										color: 'foregroundMuted',
 									})}
 								>
 									{bulkResult.failures
 										.slice(0, 8)
 										.map(
-											(f: BulkRefreshMarketResultDto["failures"][number]) => (
+											(f: BulkRefreshMarketResultDto['failures'][number]) => (
 												<li key={f.editionId}>
-													{f.title} (UPC {f.upc ?? "—"}): {f.message}
+													{f.title} (UPC {f.upc ?? '—'}): {f.message}
 												</li>
 											),
 										)}
@@ -559,28 +559,28 @@ function Settings() {
 						<div className={resultBoxClass}>
 							<p
 								className={css({
-									margin: "0 0 6px 0",
-									color: "foreground",
+									margin: '0 0 6px 0',
+									color: 'foreground',
 								})}
 							>
-								Covers: {coversBulkResult.ok} fetched,{" "}
+								Covers: {coversBulkResult.ok} fetched,{' '}
 								{coversBulkResult.skipped} skipped (already had cover)
 								{coversBulkResult.failed > 0
 									? `, ${coversBulkResult.failed} failed`
-									: ""}{" "}
+									: ''}{' '}
 								out of {coversBulkResult.total}.
 							</p>
 							{coversBulkResult.failures.length > 0 && (
 								<ul
 									className={css({
-										margin: "0",
-										paddingLeft: "1.25rem",
-										color: "foregroundMuted",
+										margin: '0',
+										paddingLeft: '1.25rem',
+										color: 'foregroundMuted',
 									})}
 								>
 									{coversBulkResult.failures.slice(0, 8).map((f) => (
 										<li key={f.editionId}>
-											{f.title} (UPC {f.upc ?? "—"}): {f.message}
+											{f.title} (UPC {f.upc ?? '—'}): {f.message}
 										</li>
 									))}
 									{coversBulkResult.failures.length > 8 && (

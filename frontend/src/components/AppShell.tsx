@@ -1,95 +1,95 @@
-import { Menu } from "lucide-react";
-import { useEffect, useState } from "react";
-import { css, cx } from "styled-system/css";
-import { Sidebar } from "#/components/Sidebar";
+import { Menu } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { css, cx } from 'styled-system/css';
+import { Sidebar } from '#/components/Sidebar';
 
 const shellClass = css({
-	display: "flex",
-	h: "100vh",
-	overflow: "hidden",
-	bg: "background",
-	fontFamily: "sans",
+	display: 'flex',
+	h: '100vh',
+	overflow: 'hidden',
+	bg: 'background',
+	fontFamily: 'sans',
 });
 
 const overlayClass = css({
-	display: "none",
+	display: 'none',
 	mdDown: {
-		display: "block",
-		position: "fixed",
-		inset: "0",
-		zIndex: "40",
-		bg: "rgba(0,0,0,0.45)",
-		opacity: "0",
-		pointerEvents: "none",
-		transition: "opacity {durations.normal} {easings.default}",
+		display: 'block',
+		position: 'fixed',
+		inset: '0',
+		zIndex: '40',
+		bg: 'rgba(0,0,0,0.45)',
+		opacity: '0',
+		pointerEvents: 'none',
+		transition: 'opacity {durations.normal} {easings.default}',
 	},
 });
 
 const overlayOpenClass = css({
 	mdDown: {
-		opacity: "1",
-		pointerEvents: "auto",
+		opacity: '1',
+		pointerEvents: 'auto',
 	},
 });
 
 const mainClass = css({
-	flex: "1",
-	overflowY: "auto",
-	display: "flex",
-	flexDir: "column",
-	minW: "0",
-	borderLeftWidth: "1px",
-	borderLeftStyle: "solid",
-	borderLeftColor: "borderSubtle",
+	flex: '1',
+	overflowY: 'auto',
+	display: 'flex',
+	flexDir: 'column',
+	minW: '0',
+	borderLeftWidth: '1px',
+	borderLeftStyle: 'solid',
+	borderLeftColor: 'borderSubtle',
 	mdDown: {
-		borderLeftWidth: "0",
+		borderLeftWidth: '0',
 	},
 });
 
 const mobileBarClass = css({
-	display: "none",
+	display: 'none',
 	mdDown: {
-		display: "flex",
-		alignItems: "center",
-		h: "topbar",
-		flexShrink: "0",
-		px: "3",
-		gap: "3",
-		borderBottomWidth: "1px",
-		borderBottomStyle: "solid",
-		borderBottomColor: "borderSubtle",
-		bg: "background",
+		display: 'flex',
+		alignItems: 'center',
+		h: 'topbar',
+		flexShrink: '0',
+		px: '3',
+		gap: '3',
+		borderBottomWidth: '1px',
+		borderBottomStyle: 'solid',
+		borderBottomColor: 'borderSubtle',
+		bg: 'background',
 	},
 });
 
 const menuBtnClass = css({
-	display: "flex",
-	alignItems: "center",
-	justifyContent: "center",
-	w: "10",
-	h: "10",
-	borderRadius: "card",
-	color: "foreground",
-	cursor: "pointer",
-	borderWidth: "0",
-	bg: "transparent",
-	transition: "background-color {durations.fast} {easings.default}",
+	display: 'flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+	w: '10',
+	h: '10',
+	borderRadius: 'card',
+	color: 'foreground',
+	cursor: 'pointer',
+	borderWidth: '0',
+	bg: 'transparent',
+	transition: 'background-color {durations.fast} {easings.default}',
 	_hover: {
-		bg: "navHover",
+		bg: 'navHover',
 	},
 });
 
 const mobileTitleClass = css({
-	fontSize: "md",
-	fontWeight: "semibold",
-	color: "foreground",
-	letterSpacing: "-0.01em",
+	fontSize: 'md',
+	fontWeight: 'semibold',
+	color: 'foreground',
+	letterSpacing: '-0.01em',
 });
 
 const mainScrollClass = css({
-	flex: "1",
-	minH: "0",
-	overflowY: "auto",
+	flex: '1',
+	minH: '0',
+	overflowY: 'auto',
 });
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -98,13 +98,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 	useEffect(() => {
 		if (!mobileOpen) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") setMobileOpen(false);
+			if (e.key === 'Escape') setMobileOpen(false);
 		};
-		document.addEventListener("keydown", onKey);
+		document.addEventListener('keydown', onKey);
 		const prev = document.body.style.overflow;
-		document.body.style.overflow = "hidden";
+		document.body.style.overflow = 'hidden';
 		return () => {
-			document.removeEventListener("keydown", onKey);
+			document.removeEventListener('keydown', onKey);
 			document.body.style.overflow = prev;
 		};
 	}, [mobileOpen]);

@@ -3,28 +3,28 @@
  * Canvas-only; no external deps. Skipped when prefers-reduced-motion is set.
  */
 export function playSaleSavedConfetti(): void {
-	if (typeof window === "undefined" || typeof document === "undefined") return;
-	if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+	if (typeof window === 'undefined' || typeof document === 'undefined') return;
+	if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
-	const canvas = document.createElement("canvas");
-	canvas.setAttribute("aria-hidden", "true");
+	const canvas = document.createElement('canvas');
+	canvas.setAttribute('aria-hidden', 'true');
 	canvas.style.cssText =
-		"position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10050";
+		'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10050';
 	document.body.appendChild(canvas);
 
-	const ctx = canvas.getContext("2d");
+	const ctx = canvas.getContext('2d');
 	if (!ctx) {
 		canvas.remove();
 		return;
 	}
 
 	const colors = [
-		"#853BCE",
-		"#42946E",
-		"#FFD700",
-		"#e8e8ef",
-		"#58a6ff",
-		"#c0392b",
+		'#853BCE',
+		'#42946E',
+		'#FFD700',
+		'#e8e8ef',
+		'#58a6ff',
+		'#c0392b',
 	];
 
 	type Piece = {
@@ -67,7 +67,7 @@ export function playSaleSavedConfetti(): void {
 			vr: (Math.random() - 0.5) * 0.2,
 			w: 5 + Math.random() * 9,
 			h: 3 + Math.random() * 7,
-			color: colors[i % colors.length] ?? "#853BCE",
+			color: colors[i % colors.length] ?? '#853BCE',
 		});
 	}
 
@@ -75,7 +75,7 @@ export function playSaleSavedConfetti(): void {
 	const maxFrames = 300;
 
 	const onResize = () => syncSize();
-	window.addEventListener("resize", onResize);
+	window.addEventListener('resize', onResize);
 
 	function tick() {
 		frames++;
@@ -108,7 +108,7 @@ export function playSaleSavedConfetti(): void {
 		if (frames < maxFrames) {
 			requestAnimationFrame(tick);
 		} else {
-			window.removeEventListener("resize", onResize);
+			window.removeEventListener('resize', onResize);
 			canvas.remove();
 		}
 	}

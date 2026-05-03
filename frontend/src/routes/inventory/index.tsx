@@ -1,28 +1,28 @@
-import type { GameEditionDto } from "@gettin-paid/shared";
+import type { GameEditionDto } from '@gettin-paid/shared';
 import {
 	labelPriceChartingConsole,
 	POPULAR_PRICECHARTING_CONSOLE_IDS,
-} from "@gettin-paid/shared";
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { css, cx } from "styled-system/css";
-import { Badge } from "#/components/ui/Badge";
-import { Button, buttonVariants } from "#/components/ui/Button";
-import { Card } from "#/components/ui/Card";
-import { Input } from "#/components/ui/Input";
-import { apiFetch, getApiBase } from "#/lib/api";
-import { formatMoneyAmount, formatPcCents } from "#/lib/money";
+} from '@gettin-paid/shared';
+import { useQuery } from '@tanstack/react-query';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useMemo, useState } from 'react';
+import { css, cx } from 'styled-system/css';
+import { Badge } from '#/components/ui/Badge';
+import { Button, buttonVariants } from '#/components/ui/Button';
+import { Card } from '#/components/ui/Card';
+import { Input } from '#/components/ui/Input';
+import { apiFetch, getApiBase } from '#/lib/api';
+import { formatMoneyAmount, formatPcCents } from '#/lib/money';
 
 const popularSet = new Set(POPULAR_PRICECHARTING_CONSOLE_IDS);
 
 const chipConsoleIds = POPULAR_PRICECHARTING_CONSOLE_IDS.slice(0, 10);
 
-export const Route = createFileRoute("/inventory/")({
+export const Route = createFileRoute('/inventory/')({
 	component: InventoryList,
 	validateSearch: (search: Record<string, unknown>) => {
 		const c = search.console;
-		if (typeof c === "string" && c.trim()) return { console: c.trim() };
+		if (typeof c === 'string' && c.trim()) return { console: c.trim() };
 		return {};
 	},
 });
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/inventory/")({
 function editionConsoleLabel(
 	e: Pick<
 		GameEditionDto,
-		"priceChartingConsoleId" | "priceChartingConsoleName"
+		'priceChartingConsoleId' | 'priceChartingConsoleName'
 	>,
 ) {
 	return (
@@ -40,7 +40,7 @@ function editionConsoleLabel(
 }
 
 function classificationLabel(c: string) {
-	return c.replace(/_/g, " ");
+	return c.replace(/_/g, ' ');
 }
 
 function editionCoverSrc(
@@ -49,251 +49,251 @@ function editionCoverSrc(
 	hasCover: boolean,
 ): string | null {
 	if (!hasCover || !coverFetchedAt) return null;
-	const base = getApiBase().replace(/\/$/, "");
+	const base = getApiBase().replace(/\/$/, '');
 	const t = Date.parse(coverFetchedAt);
 	if (!Number.isFinite(t)) return null;
 	return `${base}/api/editions/${encodeURIComponent(id)}/cover?t=${t}`;
 }
 
-const pageClass = css({ p: "6" });
+const pageClass = css({ p: '6' });
 
 const pageHeaderClass = css({
-	display: "flex",
-	flexDir: { base: "column", md: "row" },
-	alignItems: { base: "stretch", md: "center" },
-	justifyContent: { base: "flex-start", md: "space-between" },
-	mb: "6",
-	gap: "4",
+	display: 'flex',
+	flexDir: { base: 'column', md: 'row' },
+	alignItems: { base: 'stretch', md: 'center' },
+	justifyContent: { base: 'flex-start', md: 'space-between' },
+	mb: '6',
+	gap: '4',
 });
 
 const pageTitleClass = css({
-	fontSize: "2xl",
-	fontWeight: "normal",
-	color: "foreground",
-	margin: "0",
-	letterSpacing: "-0.01em",
+	fontSize: '2xl',
+	fontWeight: 'normal',
+	color: 'foreground',
+	margin: '0',
+	letterSpacing: '-0.01em',
 });
 
 /** Search + console filters stacked vertically */
 const filtersStackClass = css({
-	display: "flex",
-	flexDir: "column",
-	gap: "4",
-	mb: "6",
+	display: 'flex',
+	flexDir: 'column',
+	gap: '4',
+	mb: '6',
 });
 
 const searchBlockClass = css({
-	display: "flex",
-	alignItems: "center",
-	gap: "2",
-	p: "4",
-	borderRadius: "card",
-	bg: "surface",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "border",
-	minW: "0",
+	display: 'flex',
+	alignItems: 'center',
+	gap: '2',
+	p: '4',
+	borderRadius: 'card',
+	bg: 'surface',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	borderColor: 'border',
+	minW: '0',
 });
 
 const filtersRowClass = css({
-	display: "flex",
-	alignItems: "center",
-	gap: "2",
-	flexWrap: "wrap",
+	display: 'flex',
+	alignItems: 'center',
+	gap: '2',
+	flexWrap: 'wrap',
 });
 
 const filterLabelClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	mr: "1",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	mr: '1',
 });
 
 const filterChipBase = css({
-	display: "inline-flex",
-	alignItems: "center",
-	px: "3",
-	py: "1",
-	borderRadius: "full",
-	fontSize: "sm",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	cursor: "pointer",
-	textDecoration: "none",
+	display: 'inline-flex',
+	alignItems: 'center',
+	px: '3',
+	py: '1',
+	borderRadius: 'full',
+	fontSize: 'sm',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	cursor: 'pointer',
+	textDecoration: 'none',
 	transition:
-		"background-color 120ms ease, border-color 120ms ease, color 120ms ease",
+		'background-color 120ms ease, border-color 120ms ease, color 120ms ease',
 });
 
 const filterChipActive = css({
-	bg: "navActive",
-	borderColor: "borderSubtle",
-	color: "foreground",
-	fontWeight: "medium",
+	bg: 'navActive',
+	borderColor: 'borderSubtle',
+	color: 'foreground',
+	fontWeight: 'medium',
 });
 
 const filterChipInactive = css({
-	bg: "transparent",
-	borderColor: "transparent",
-	color: "foregroundMuted",
-	_hover: { bg: "navHover", color: "foreground", borderColor: "border" },
+	bg: 'transparent',
+	borderColor: 'transparent',
+	color: 'foregroundMuted',
+	_hover: { bg: 'navHover', color: 'foreground', borderColor: 'border' },
 });
 
 const listClass = css({
-	listStyle: "none",
-	padding: "0",
-	margin: "0",
-	display: "flex",
-	flexDir: "column",
-	gap: "2",
+	listStyle: 'none',
+	padding: '0',
+	margin: '0',
+	display: 'flex',
+	flexDir: 'column',
+	gap: '2',
 });
 
 /** Matches each edition row grid: title block | FMV | Proposed | actions */
 const listColumnHeaderClass = css({
-	display: { base: "none", md: "grid" },
+	display: { base: 'none', md: 'grid' },
 	gridTemplateColumns:
-		"minmax(0,1fr) auto auto minmax(min-content,max-content)",
-	columnGap: "4",
-	alignItems: "baseline",
-	px: "4",
-	pb: "2",
-	mb: "1",
-	fontSize: "xs",
-	fontWeight: "medium",
-	color: "foregroundMuted",
-	textTransform: "uppercase",
-	letterSpacing: "0.06em",
+		'minmax(0,1fr) auto auto minmax(min-content,max-content)',
+	columnGap: '4',
+	alignItems: 'baseline',
+	px: '4',
+	pb: '2',
+	mb: '1',
+	fontSize: 'xs',
+	fontWeight: 'medium',
+	color: 'foregroundMuted',
+	textTransform: 'uppercase',
+	letterSpacing: '0.06em',
 });
 
 const editionCardClass = css({
-	display: "flex",
-	flexDir: "column",
-	gap: "3",
-	p: "4",
-	textDecoration: "none",
-	borderRadius: "card",
-	bg: "surface",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "border",
-	transition: "border-color 120ms ease, background-color 120ms ease",
-	_hover: { borderColor: "borderSubtle", bg: "rgba(255,255,255,0.03)" },
+	display: 'flex',
+	flexDir: 'column',
+	gap: '3',
+	p: '4',
+	textDecoration: 'none',
+	borderRadius: 'card',
+	bg: 'surface',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	borderColor: 'border',
+	transition: 'border-color 120ms ease, background-color 120ms ease',
+	_hover: { borderColor: 'borderSubtle', bg: 'rgba(255,255,255,0.03)' },
 	md: {
-		display: "grid",
-		columnGap: "4",
-		rowGap: "2",
-		alignItems: "center",
+		display: 'grid',
+		columnGap: '4',
+		rowGap: '2',
+		alignItems: 'center',
 		gridTemplateColumns:
-			"minmax(0,1fr) auto auto minmax(min-content,max-content)",
+			'minmax(0,1fr) auto auto minmax(min-content,max-content)',
 	},
 });
 
 const editionTitleBlockClass = css({
-	minWidth: "0",
+	minWidth: '0',
 	md: {
-		gridColumn: "1",
-		gridRow: "1 / 3",
+		gridColumn: '1',
+		gridRow: '1 / 3',
 	},
 });
 
 const editionTitleClass = css({
-	fontSize: "base",
-	fontWeight: "medium",
-	color: "foreground",
-	margin: "0 0 4px 0",
+	fontSize: 'base',
+	fontWeight: 'medium',
+	color: 'foreground',
+	margin: '0 0 4px 0',
 });
 
 const editionMetaClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	margin: "0",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	margin: '0',
 });
 
 const editionClassificationClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	minWidth: "0",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	minWidth: '0',
 });
 
 const editionMetricClass = css({
-	fontSize: "sm",
-	fontVariantNumeric: "tabular-nums",
-	color: "foreground",
-	textAlign: "right",
-	whiteSpace: "nowrap",
+	fontSize: 'sm',
+	fontVariantNumeric: 'tabular-nums',
+	color: 'foreground',
+	textAlign: 'right',
+	whiteSpace: 'nowrap',
 });
 
 const editionMetricMutedClass = css({
-	fontSize: "sm",
-	fontVariantNumeric: "tabular-nums",
-	color: "foregroundMuted",
-	textAlign: "right",
-	whiteSpace: "nowrap",
+	fontSize: 'sm',
+	fontVariantNumeric: 'tabular-nums',
+	color: 'foregroundMuted',
+	textAlign: 'right',
+	whiteSpace: 'nowrap',
 });
 
 const editionActionsClass = css({
-	display: "flex",
-	alignItems: "center",
-	gap: "3",
-	alignSelf: "flex-end",
-	justifyContent: "flex-end",
+	display: 'flex',
+	alignItems: 'center',
+	gap: '3',
+	alignSelf: 'flex-end',
+	justifyContent: 'flex-end',
 	md: {
-		gridColumn: "4",
-		alignSelf: "center",
-		justifySelf: "end",
+		gridColumn: '4',
+		alignSelf: 'center',
+		justifySelf: 'end',
 	},
 });
 
 const arrowClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	flexShrink: "0",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	flexShrink: '0',
 });
 
 const emptyClass = css({
-	textAlign: "center",
-	py: "16",
-	color: "foregroundMuted",
+	textAlign: 'center',
+	py: '16',
+	color: 'foregroundMuted',
 });
 
 const emptyTitleClass = css({
-	fontSize: "md",
-	color: "foreground",
-	mb: "2",
+	fontSize: 'md',
+	color: 'foreground',
+	mb: '2',
 });
 
 const stateTextClass = css({
-	color: "foregroundMuted",
-	fontSize: "sm",
-	py: "4",
+	color: 'foregroundMuted',
+	fontSize: 'sm',
+	py: '4',
 });
 
 const errorCardClass = css({
-	bg: "rgba(192,57,43,0.08)",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "rgba(192,57,43,0.2)",
-	borderRadius: "card",
-	p: "4",
-	mb: "4",
+	bg: 'rgba(192,57,43,0.08)',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	borderColor: 'rgba(192,57,43,0.2)',
+	borderRadius: 'card',
+	p: '4',
+	mb: '4',
 });
 
 const errorTitleClass = css({
-	fontSize: "base",
-	fontWeight: "semibold",
-	color: "danger",
-	mb: "1",
+	fontSize: 'base',
+	fontWeight: 'semibold',
+	color: 'danger',
+	mb: '1',
 });
 
 const errorTextClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	mb: "3",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	mb: '3',
 });
 
 function InventoryList() {
 	const { console: consoleFilter } = Route.useSearch();
 	const platformsQuery = useQuery({
-		queryKey: ["platforms"],
-		queryFn: () => apiFetch<{ id: string; name: string }[]>("/platforms"),
+		queryKey: ['platforms'],
+		queryFn: () => apiFetch<{ id: string; name: string }[]>('/platforms'),
 		staleTime: 86_400_000,
 	});
 	const nameById = useMemo(() => {
@@ -326,16 +326,16 @@ function InventoryList() {
 	}, [platformsQuery.data, nameById]);
 
 	const { data, isLoading, isError, error, refetch } = useQuery({
-		queryKey: ["editions", consoleFilter ?? "all"],
+		queryKey: ['editions', consoleFilter ?? 'all'],
 		queryFn: () => {
 			const q = consoleFilter
 				? `?console=${encodeURIComponent(consoleFilter)}`
-				: "";
+				: '';
 			return apiFetch<GameEditionDto[]>(`/editions${q}`);
 		},
 	});
 
-	const [titleFilter, setTitleFilter] = useState("");
+	const [titleFilter, setTitleFilter] = useState('');
 	const filteredEditions = useMemo(() => {
 		if (!data?.length) return [];
 		const needle = titleFilter.trim().toLowerCase();
@@ -349,15 +349,15 @@ function InventoryList() {
 				<h1 className={pageTitleClass}>Inventory</h1>
 				<div
 					className={css({
-						display: "flex",
-						flexWrap: "wrap",
-						gap: "2",
-						alignItems: "center",
+						display: 'flex',
+						flexWrap: 'wrap',
+						gap: '2',
+						alignItems: 'center',
 					})}
 				>
 					<Link
 						to="/inventory/add"
-						className={buttonVariants({ variant: "primary", size: "sm" })}
+						className={buttonVariants({ variant: 'primary', size: 'sm' })}
 					>
 						+ New
 					</Link>
@@ -376,7 +376,7 @@ function InventoryList() {
 						value={titleFilter}
 						onChange={(ev) => setTitleFilter(ev.target.value)}
 						autoComplete="off"
-						className={css({ flex: "1", minW: "0" })}
+						className={css({ flex: '1', minW: '0' })}
 					/>
 				</div>
 				<div className={filtersRowClass}>
@@ -397,31 +397,31 @@ function InventoryList() {
 						/>
 					))}
 					{moreConsoleOptions.length > 0 && (
-						<details style={{ position: "relative" }}>
+						<details style={{ position: 'relative' }}>
 							<summary
 								className={`${filterChipBase} ${filterChipInactive}`}
-								style={{ listStyle: "none" }}
+								style={{ listStyle: 'none' }}
 							>
 								More…
 							</summary>
 							<Card
 								style={{
-									position: "absolute",
-									top: "100%",
+									position: 'absolute',
+									top: '100%',
 									left: 0,
-									marginTop: "4px",
+									marginTop: '4px',
 									zIndex: 20,
-									minWidth: "220px",
-									maxHeight: "280px",
-									overflowY: "auto",
+									minWidth: '220px',
+									maxHeight: '280px',
+									overflowY: 'auto',
 								}}
 							>
 								<div
 									className={css({
-										p: "2",
-										display: "flex",
-										flexDir: "column",
-										gap: "1",
+										p: '2',
+										display: 'flex',
+										flexDir: 'column',
+										gap: '1',
 									})}
 								>
 									{moreConsoleOptions.map((row) => (
@@ -430,14 +430,14 @@ function InventoryList() {
 											to="/inventory"
 											search={{ console: row.id }}
 											className={css({
-												display: "block",
-												px: "3",
-												py: "2",
-												borderRadius: "btn",
-												fontSize: "sm",
-												color: "foregroundMuted",
-												textDecoration: "none",
-												_hover: { bg: "navHover", color: "foreground" },
+												display: 'block',
+												px: '3',
+												py: '2',
+												borderRadius: 'btn',
+												fontSize: 'sm',
+												color: 'foregroundMuted',
+												textDecoration: 'none',
+												_hover: { bg: 'navHover', color: 'foreground' },
 											})}
 										>
 											{row.label}
@@ -456,7 +456,7 @@ function InventoryList() {
 				<div className={errorCardClass}>
 					<p className={errorTitleClass}>Could not load inventory.</p>
 					<p className={errorTextClass}>
-						{error instanceof Error ? error.message : "Unknown error"}
+						{error instanceof Error ? error.message : 'Unknown error'}
 					</p>
 					<Button
 						variant="secondary"
@@ -473,12 +473,12 @@ function InventoryList() {
 			{data && data.length === 0 && !isLoading && (
 				<div className={emptyClass}>
 					<p className={emptyTitleClass}>No games yet.</p>
-					<p className={css({ mb: "4", fontSize: "sm" })}>
+					<p className={css({ mb: '4', fontSize: 'sm' })}>
 						Add a UPC to start tracking copies and market data.
 					</p>
 					<Link
 						to="/inventory/add"
-						className={buttonVariants({ variant: "primary", size: "md" })}
+						className={buttonVariants({ variant: 'primary', size: 'md' })}
 					>
 						Add a game
 					</Link>
@@ -488,7 +488,7 @@ function InventoryList() {
 			{data && data.length > 0 && filteredEditions.length === 0 && (
 				<div className={emptyClass}>
 					<p className={emptyTitleClass}>No titles match your search.</p>
-					<p className={css({ fontSize: "sm" })}>
+					<p className={css({ fontSize: 'sm' })}>
 						Try a different phrase or clear the search box.
 					</p>
 				</div>
@@ -499,8 +499,8 @@ function InventoryList() {
 					{filteredEditions.some((e) => (e.activeCopies?.length ?? 0) > 0) && (
 						<div className={listColumnHeaderClass} aria-hidden="true">
 							<span style={{ gridColumn: 1 }} />
-							<span style={{ gridColumn: 2, textAlign: "right" }}>FMV</span>
-							<span style={{ gridColumn: 3, textAlign: "right" }}>
+							<span style={{ gridColumn: 2, textAlign: 'right' }}>FMV</span>
+							<span style={{ gridColumn: 3, textAlign: 'right' }}>
 								Proposed
 							</span>
 							<span style={{ gridColumn: 4 }} />
@@ -525,9 +525,9 @@ function InventoryList() {
 										<div className={editionTitleBlockClass}>
 											<div
 												className={css({
-													display: "flex",
-													alignItems: "flex-start",
-													gap: "3",
+													display: 'flex',
+													alignItems: 'flex-start',
+													gap: '3',
 												})}
 											>
 												{thumbSrc ? (
@@ -535,25 +535,25 @@ function InventoryList() {
 														src={thumbSrc}
 														alt=""
 														className={css({
-															width: "48px",
-															height: "48px",
-															objectFit: "cover",
-															borderRadius: "btn",
-															flexShrink: "0",
-															borderWidth: "1px",
-															borderStyle: "solid",
-															borderColor: "border",
-															bg: "surface",
+															width: '48px',
+															height: '48px',
+															objectFit: 'cover',
+															borderRadius: 'btn',
+															flexShrink: '0',
+															borderWidth: '1px',
+															borderStyle: 'solid',
+															borderColor: 'border',
+															bg: 'surface',
 														})}
 													/>
 												) : null}
-												<div className={css({ minWidth: "0", flex: "1" })}>
+												<div className={css({ minWidth: '0', flex: '1' })}>
 													<p className={editionTitleClass}>{e.title}</p>
 													<p className={editionMetaClass}>
 														{editionConsoleLabel(e)}
 														{e.copyCount != null && e.copyCount > 0
-															? ` · ${e.copyCount} ${e.copyCount === 1 ? "copy" : "copies"}`
-															: ""}
+															? ` · ${e.copyCount} ${e.copyCount === 1 ? 'copy' : 'copies'}`
+															: ''}
 													</p>
 												</div>
 											</div>
@@ -562,17 +562,17 @@ function InventoryList() {
 											<div
 												key={row.id}
 												className={css({
-													display: { base: "grid", md: "contents" },
+													display: { base: 'grid', md: 'contents' },
 													gridTemplateColumns: {
-														base: "minmax(0,1fr) auto auto",
+														base: 'minmax(0,1fr) auto auto',
 														md: undefined,
 													},
-													columnGap: "3",
-													alignItems: "baseline",
-													borderTopWidth: { base: "1px", md: "0" },
-													borderTopStyle: "solid",
-													borderTopColor: "borderSubtle",
-													pt: { base: "3", md: "0" },
+													columnGap: '3',
+													alignItems: 'baseline',
+													borderTopWidth: { base: '1px', md: '0' },
+													borderTopStyle: 'solid',
+													borderTopColor: 'borderSubtle',
+													pt: { base: '3', md: '0' },
 												})}
 											>
 												<span
@@ -580,7 +580,7 @@ function InventoryList() {
 														editionClassificationClass,
 														css({
 															md: {
-																gridColumn: "1",
+																gridColumn: '1',
 																gridRow: `${3 + i} / ${4 + i}`,
 															},
 														}),
@@ -593,7 +593,7 @@ function InventoryList() {
 														editionMetricClass,
 														css({
 															md: {
-																gridColumn: "2",
+																gridColumn: '2',
 																gridRow: `${3 + i} / ${4 + i}`,
 															},
 														}),
@@ -608,7 +608,7 @@ function InventoryList() {
 															: editionMetricMutedClass,
 														css({
 															md: {
-																gridColumn: "3",
+																gridColumn: '3',
 																gridRow: `${3 + i} / ${4 + i}`,
 															},
 														}),
@@ -616,7 +616,7 @@ function InventoryList() {
 												>
 													{row.offerAmount != null
 														? formatMoneyAmount(row.offerAmount)
-														: "—"}
+														: '—'}
 												</span>
 											</div>
 										))}
@@ -625,7 +625,7 @@ function InventoryList() {
 												editionActionsClass,
 												css({
 													md: {
-														gridRow: n > 0 ? `1 / ${3 + n}` : "1 / 3",
+														gridRow: n > 0 ? `1 / ${3 + n}` : '1 / 3',
 													},
 												}),
 											)}
@@ -653,7 +653,7 @@ function FilterChip({
 	active,
 }: {
 	label: string;
-	to: "/inventory";
+	to: '/inventory';
 	search?: { console?: string };
 	active: boolean;
 }) {

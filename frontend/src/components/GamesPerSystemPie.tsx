@@ -1,43 +1,43 @@
-import { css } from "styled-system/css";
+import { css } from 'styled-system/css';
 
 const wrapClass = css({
-	display: "flex",
-	flexDir: { base: "column", md: "row" },
-	alignItems: "center",
-	gap: "6",
+	display: 'flex',
+	flexDir: { base: 'column', md: 'row' },
+	alignItems: 'center',
+	gap: '6',
 });
 
 const legendClass = css({
-	listStyle: "none",
-	margin: "0",
-	padding: "0",
-	display: "flex",
-	flexDir: "column",
-	gap: "2",
-	fontSize: "sm",
-	color: "foregroundMuted",
-	minW: "0",
-	flex: "1",
+	listStyle: 'none',
+	margin: '0',
+	padding: '0',
+	display: 'flex',
+	flexDir: 'column',
+	gap: '2',
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	minW: '0',
+	flex: '1',
 });
 
 const legendItemClass = css({
-	display: "flex",
-	alignItems: "center",
-	gap: "2",
+	display: 'flex',
+	alignItems: 'center',
+	gap: '2',
 });
 
 const swatchClass = css({
-	w: "3",
-	h: "3",
-	borderRadius: "sm",
-	flexShrink: "0",
+	w: '3',
+	h: '3',
+	borderRadius: 'sm',
+	flexShrink: '0',
 });
 
 const valueClass = css({
-	color: "foreground",
-	fontWeight: "medium",
-	ml: "auto",
-	pl: "2",
+	color: 'foreground',
+	fontWeight: 'medium',
+	ml: 'auto',
+	pl: '2',
 });
 
 function polarToCartesian(
@@ -79,7 +79,7 @@ function mergeSlicesForPie(
 	const head = positive.slice(0, PIE_MAX_SLICES - 1);
 	const tail = positive.slice(PIE_MAX_SLICES - 1);
 	const otherSum = tail.reduce((s, x) => s + x.value, 0);
-	return [...head, { label: "Other", value: otherSum }];
+	return [...head, { label: 'Other', value: otherSum }];
 }
 
 function hueForIndex(i: number) {
@@ -94,7 +94,7 @@ export interface GamesPerSystemPieProps {
 
 export function GamesPerSystemPie({
 	slices,
-	emptyLabel = "No games to chart yet.",
+	emptyLabel = 'No games to chart yet.',
 }: GamesPerSystemPieProps) {
 	const pieData = mergeSlicesForPie(slices);
 	const total = pieData.reduce((s, d) => s + d.value, 0);
@@ -103,11 +103,11 @@ export function GamesPerSystemPie({
 		return (
 			<p
 				className={css({
-					fontSize: "sm",
-					color: "foregroundMuted",
-					m: "0",
-					py: "6",
-					textAlign: "center",
+					fontSize: 'sm',
+					color: 'foregroundMuted',
+					m: '0',
+					py: '6',
+					textAlign: 'center',
 				})}
 			>
 				{emptyLabel}
@@ -129,12 +129,12 @@ export function GamesPerSystemPie({
 				role="img"
 				aria-label={`Games by system: ${pieData
 					.map((d) => `${d.label} ${d.value}`)
-					.join(", ")}`}
+					.join(', ')}`}
 			>
 				<title>
 					{`Games by system — ${pieData
 						.map((d) => `${d.label}: ${d.value}`)
-						.join("; ")}`}
+						.join('; ')}`}
 				</title>
 				{pieData.map((d, i) => {
 					const sweep = (d.value / total) * 360;
@@ -165,7 +165,7 @@ export function GamesPerSystemPie({
 									background: `hsl(${hueForIndex(i)} 58% 52%)`,
 								}}
 							/>
-							<span className={css({ minW: "0", flex: "1" })}>{d.label}</span>
+							<span className={css({ minW: '0', flex: '1' })}>{d.label}</span>
 							<span className={valueClass}>
 								{d.value} ({pct}%)
 							</span>

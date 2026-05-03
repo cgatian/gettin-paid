@@ -1,19 +1,19 @@
 /** Browser calls to Nest API (`globalPrefix` = `api`). */
 export function getApiBase(): string {
-	return import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+	return import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 }
 
 export async function apiFetch<T>(
 	path: string,
 	init?: RequestInit,
 ): Promise<T> {
-	const base = getApiBase().replace(/\/$/, "");
-	const p = path.startsWith("/") ? path : `/${path}`;
+	const base = getApiBase().replace(/\/$/, '');
+	const p = path.startsWith('/') ? path : `/${path}`;
 	const url = `${base}/api${p}`;
 	const res = await fetch(url, {
 		...init,
 		headers: {
-			"Content-Type": "application/json",
+			'Content-Type': 'application/json',
 			...(init?.headers ?? {}),
 		},
 	});
@@ -35,18 +35,18 @@ export async function apiFetch<T>(
 export async function apiFetchPost<T>(
 	path: string,
 	body?: unknown,
-	init?: Omit<RequestInit, "body" | "method">,
+	init?: Omit<RequestInit, 'body' | 'method'>,
 ): Promise<T> {
 	return apiFetch<T>(path, {
 		...init,
-		method: "POST",
+		method: 'POST',
 		...(body !== undefined ? { body: JSON.stringify(body) } : {}),
 	});
 }
 
 export async function apiFetchBlob(path: string): Promise<Blob> {
-	const base = getApiBase().replace(/\/$/, "");
-	const p = path.startsWith("/") ? path : `/${path}`;
+	const base = getApiBase().replace(/\/$/, '');
+	const p = path.startsWith('/') ? path : `/${path}`;
 	const url = `${base}/api${p}`;
 	const res = await fetch(url);
 	if (!res.ok) {

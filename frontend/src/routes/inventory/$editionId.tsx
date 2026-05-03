@@ -1,4 +1,4 @@
-import { Dialog } from "@base-ui/react";
+import { Dialog } from '@base-ui/react';
 import {
 	CopyClassification,
 	type EditionDetailDto,
@@ -8,25 +8,25 @@ import {
 	type PriceChartingPricingPreviewDto,
 	priceChartingProductBrowseUrl,
 	snapshotFmvCentsForClassification,
-} from "@gettin-paid/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { css, cx } from "styled-system/css";
-import { Badge } from "#/components/ui/Badge";
-import { Button } from "#/components/ui/Button";
+} from '@gettin-paid/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { css, cx } from 'styled-system/css';
+import { Badge } from '#/components/ui/Badge';
+import { Button } from '#/components/ui/Button';
 import {
 	Card,
 	cardBody,
 	cardHeader,
 	formGroupClass,
-} from "#/components/ui/Card";
-import { Field, Input, inputClass, Label, Select } from "#/components/ui/Input";
-import { apiFetch, apiFetchPost, getApiBase } from "#/lib/api";
-import { formatMoneyAmount, formatPcCents } from "#/lib/money";
-import { playSaleSavedConfetti } from "#/lib/saleConfetti";
+} from '#/components/ui/Card';
+import { Field, Input, inputClass, Label, Select } from '#/components/ui/Input';
+import { apiFetch, apiFetchPost, getApiBase } from '#/lib/api';
+import { formatMoneyAmount, formatPcCents } from '#/lib/money';
+import { playSaleSavedConfetti } from '#/lib/saleConfetti';
 
-export const Route = createFileRoute("/inventory/$editionId")({
+export const Route = createFileRoute('/inventory/$editionId')({
 	component: EditionDetail,
 });
 
@@ -36,7 +36,7 @@ const CLASSIFICATION_OPTIONS = Object.values(CopyClassification);
 function baseOfferCentsPreview(
 	data: Pick<
 		PriceChartingPricingPreviewDto,
-		"loosePrice" | "cibPrice" | "newPrice" | "gradedPrice"
+		'loosePrice' | 'cibPrice' | 'newPrice' | 'gradedPrice'
 	>,
 	classification: CopyClassification,
 ): number | null {
@@ -49,37 +49,37 @@ function baseOfferCentsPreview(
 function fmvRowLabel(classification: CopyClassification): string {
 	switch (classification) {
 		case CopyClassification.LOOSE:
-			return "Loose";
+			return 'Loose';
 		case CopyClassification.CIB:
-			return "CIB";
+			return 'CIB';
 		case CopyClassification.SEALED:
-			return "New";
+			return 'New';
 		case CopyClassification.GRADED_SLAB:
-			return "Graded";
+			return 'Graded';
 		default:
-			return classification.replace(/_/g, " ");
+			return classification.replace(/_/g, ' ');
 	}
 }
 
 /** Normalize stored offer for the edit/add inputs so cents match the slider. */
 function formatStoredOfferForInput(raw: string | null | undefined): string {
-	const t = raw?.trim() ?? "";
-	if (!t) return "";
-	const n = Number.parseFloat(t.replace(/,/g, ""));
+	const t = raw?.trim() ?? '';
+	if (!t) return '';
+	const n = Number.parseFloat(t.replace(/,/g, ''));
 	return Number.isFinite(n) ? n.toFixed(2) : t;
 }
 
 function snapshotToPricingPreview(
-	s: NonNullable<EditionDetailDto["snapshot"]>,
+	s: NonNullable<EditionDetailDto['snapshot']>,
 ): Pick<
 	PriceChartingPricingPreviewDto,
-	| "productName"
-	| "consoleName"
-	| "loosePrice"
-	| "cibPrice"
-	| "newPrice"
-	| "gradedPrice"
-	| "salesVolume"
+	| 'productName'
+	| 'consoleName'
+	| 'loosePrice'
+	| 'cibPrice'
+	| 'newPrice'
+	| 'gradedPrice'
+	| 'salesVolume'
 > {
 	return {
 		productName: s.productName,
@@ -93,48 +93,48 @@ function snapshotToPricingPreview(
 }
 
 const priceDlClass = css({
-	display: "grid",
-	gridTemplateColumns: "auto 1fr",
-	columnGap: "4",
-	rowGap: "1",
-	fontSize: "sm",
-	margin: "0",
+	display: 'grid',
+	gridTemplateColumns: 'auto 1fr',
+	columnGap: '4',
+	rowGap: '1',
+	fontSize: 'sm',
+	margin: '0',
 });
 
 const priceDtClass = css({
-	color: "foregroundMuted",
-	fontWeight: "normal",
-	margin: "0",
+	color: 'foregroundMuted',
+	fontWeight: 'normal',
+	margin: '0',
 });
-const priceDdClass = css({ margin: "0", color: "foreground" });
+const priceDdClass = css({ margin: '0', color: 'foreground' });
 
 const mutedHelpClass = css({
-	color: "foregroundMuted",
-	fontSize: "xs",
-	mt: "1",
-	mb: "0",
+	color: 'foregroundMuted',
+	fontSize: 'xs',
+	mt: '1',
+	mb: '0',
 });
 
 const lowOfferWarningClass = css({
-	display: "block",
-	mt: "2",
-	mb: "0",
-	fontSize: "sm",
-	color: "foreground",
-	bg: "rgba(180, 120, 0, 0.08)",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "rgba(180, 120, 0, 0.22)",
-	borderRadius: "btn",
-	px: "3",
-	py: "2",
+	display: 'block',
+	mt: '2',
+	mb: '0',
+	fontSize: 'sm',
+	color: 'foreground',
+	bg: 'rgba(180, 120, 0, 0.08)',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	borderColor: 'rgba(180, 120, 0, 0.22)',
+	borderRadius: 'btn',
+	px: '3',
+	py: '2',
 });
 
 function editionDetailCoverSrc(
-	e: Pick<EditionDetailDto, "id" | "coverFetchedAt" | "hasCover">,
+	e: Pick<EditionDetailDto, 'id' | 'coverFetchedAt' | 'hasCover'>,
 ): string | null {
 	if (!e.hasCover || !e.coverFetchedAt) return null;
-	const base = getApiBase().replace(/\/$/, "");
+	const base = getApiBase().replace(/\/$/, '');
 	const t = Date.parse(e.coverFetchedAt);
 	if (!Number.isFinite(t)) return null;
 	return `${base}/api/editions/${encodeURIComponent(e.id)}/cover?t=${t}`;
@@ -143,7 +143,7 @@ function editionDetailCoverSrc(
 function editionConsoleBadge(
 	e: Pick<
 		EditionDetailDto,
-		"priceChartingConsoleId" | "priceChartingConsoleName"
+		'priceChartingConsoleId' | 'priceChartingConsoleName'
 	>,
 ) {
 	return (
@@ -152,254 +152,254 @@ function editionConsoleBadge(
 	);
 }
 
-const pageClass = css({ p: "6" });
+const pageClass = css({ p: '6' });
 
 const backLinkClass = css({
-	display: "inline-flex",
-	alignItems: "center",
-	gap: "1",
-	fontSize: "sm",
-	color: "link",
-	textDecoration: "none",
-	mb: "5",
-	_hover: { color: "linkHover" },
-	transition: "color 120ms ease",
+	display: 'inline-flex',
+	alignItems: 'center',
+	gap: '1',
+	fontSize: 'sm',
+	color: 'link',
+	textDecoration: 'none',
+	mb: '5',
+	_hover: { color: 'linkHover' },
+	transition: 'color 120ms ease',
 });
 
-const pageHeaderClass = css({ mb: "6" });
+const pageHeaderClass = css({ mb: '6' });
 
 const pageTitleClass = css({
-	fontSize: "2xl",
-	fontWeight: "normal",
-	color: "foreground",
-	mb: "2",
-	letterSpacing: "-0.01em",
+	fontSize: '2xl',
+	fontWeight: 'normal',
+	color: 'foreground',
+	mb: '2',
+	letterSpacing: '-0.01em',
 });
 
 const metaRowClass = css({
-	display: "flex",
-	alignItems: "center",
-	gap: "2",
-	flexWrap: "wrap",
+	display: 'flex',
+	alignItems: 'center',
+	gap: '2',
+	flexWrap: 'wrap',
 });
 
 const metaTextClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
 });
 
 const externalLinkClass = css({
-	fontSize: "sm",
-	color: "link",
-	textDecoration: "underline",
-	textUnderlineOffset: "2px",
-	_hover: { color: "linkHover" },
+	fontSize: 'sm',
+	color: 'link',
+	textDecoration: 'underline',
+	textUnderlineOffset: '2px',
+	_hover: { color: 'linkHover' },
 });
 
 const gridClass = css({
-	display: "flex",
-	flexDir: "column",
-	gap: "4",
-	mb: "4",
+	display: 'flex',
+	flexDir: 'column',
+	gap: '4',
+	mb: '4',
 });
 
 const cardTitleClass = css({
-	fontSize: "base",
-	fontWeight: "medium",
-	color: "foreground",
+	fontSize: 'base',
+	fontWeight: 'medium',
+	color: 'foreground',
 });
 
 const emptyTextClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	margin: "0",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	margin: '0',
 });
 
 const dlClass = css({
-	display: "grid",
-	gridTemplateColumns: "auto 1fr",
-	columnGap: "2",
-	rowGap: "1",
-	margin: "0",
+	display: 'grid',
+	gridTemplateColumns: 'auto 1fr',
+	columnGap: '2',
+	rowGap: '1',
+	margin: '0',
 });
 
-const dtClass = css({ fontSize: "sm", color: "foregroundMuted" });
+const dtClass = css({ fontSize: 'sm', color: 'foregroundMuted' });
 
 const ddClass = css({
-	fontSize: "sm",
-	fontWeight: "medium",
-	color: "accentGreen",
-	margin: "0",
+	fontSize: 'sm',
+	fontWeight: 'medium',
+	color: 'accentGreen',
+	margin: '0',
 });
 
 const fetchedAtClass = css({
-	fontSize: "xs",
-	color: "foregroundMuted",
-	mb: "2",
+	fontSize: 'xs',
+	color: 'foregroundMuted',
+	mb: '2',
 });
 
 const copiesTableScrollClass = css({
-	overflowX: { base: "visible", md: "auto" },
-	mb: "4",
+	overflowX: { base: 'visible', md: 'auto' },
+	mb: '4',
 });
 
 const copiesTableMinClass = css({
-	minWidth: { base: "0", md: "740px" },
+	minWidth: { base: '0', md: '740px' },
 });
 
 const copiesGridCols =
-	"minmax(90px, 100px) minmax(96px, 120px) minmax(72px, 96px) minmax(72px, 96px) minmax(100px, 140px) minmax(0, 1fr) auto";
+	'minmax(90px, 100px) minmax(96px, 120px) minmax(72px, 96px) minmax(72px, 96px) minmax(100px, 140px) minmax(0, 1fr) auto';
 
 const copiesHeaderRowClass = css({
-	display: { base: "none", md: "grid" },
+	display: { base: 'none', md: 'grid' },
 	gridTemplateColumns: copiesGridCols,
-	gap: "3",
-	alignItems: "center",
-	px: "2",
-	pb: "2",
-	mb: "2",
-	borderBottomWidth: "1px",
-	borderBottomStyle: "solid",
-	borderBottomColor: "border",
-	fontSize: "xs",
-	fontWeight: "medium",
-	color: "foregroundMuted",
-	textTransform: "uppercase",
-	letterSpacing: "0.05em",
+	gap: '3',
+	alignItems: 'center',
+	px: '2',
+	pb: '2',
+	mb: '2',
+	borderBottomWidth: '1px',
+	borderBottomStyle: 'solid',
+	borderBottomColor: 'border',
+	fontSize: 'xs',
+	fontWeight: 'medium',
+	color: 'foregroundMuted',
+	textTransform: 'uppercase',
+	letterSpacing: '0.05em',
 });
 
 const copyDataRowClass = css({
-	display: { base: "flex", md: "grid" },
-	flexDir: { base: "column", md: undefined },
+	display: { base: 'flex', md: 'grid' },
+	flexDir: { base: 'column', md: undefined },
 	gridTemplateColumns: { md: copiesGridCols },
-	gap: "3",
-	alignItems: { base: "stretch", md: "center" },
-	px: "2",
-	py: "3",
-	fontSize: "sm",
-	borderRadius: { base: "btn", md: "0" },
-	borderWidth: { base: "1px", md: "0" },
-	borderStyle: "solid",
-	borderColor: "borderSubtle",
-	mb: { base: "3", md: "0" },
-	borderBottomWidth: { base: "1px", md: "1px" },
-	borderBottomStyle: "solid",
-	borderBottomColor: "borderSubtle",
-	"&:last-child": {
-		mb: { base: "0", md: "0" },
-		borderBottomWidth: { md: "0" },
+	gap: '3',
+	alignItems: { base: 'stretch', md: 'center' },
+	px: '2',
+	py: '3',
+	fontSize: 'sm',
+	borderRadius: { base: 'btn', md: '0' },
+	borderWidth: { base: '1px', md: '0' },
+	borderStyle: 'solid',
+	borderColor: 'borderSubtle',
+	mb: { base: '3', md: '0' },
+	borderBottomWidth: { base: '1px', md: '1px' },
+	borderBottomStyle: 'solid',
+	borderBottomColor: 'borderSubtle',
+	'&:last-child': {
+		mb: { base: '0', md: '0' },
+		borderBottomWidth: { md: '0' },
 	},
 });
 
 const copyRowSoldClass = css({
-	bg: { md: "rgba(66, 148, 110, 0.06)" },
-	borderColor: { md: "rgba(66, 148, 110, 0.22)" },
+	bg: { md: 'rgba(66, 148, 110, 0.06)' },
+	borderColor: { md: 'rgba(66, 148, 110, 0.22)' },
 });
 
 const copyFieldPairClass = css({
-	display: { base: "flex", md: "contents" },
-	flexDir: { base: "row", md: undefined },
-	justifyContent: { base: "space-between", md: undefined },
-	alignItems: { base: "baseline", md: undefined },
-	gap: { base: "4", md: undefined },
-	minWidth: "0",
+	display: { base: 'flex', md: 'contents' },
+	flexDir: { base: 'row', md: undefined },
+	justifyContent: { base: 'space-between', md: undefined },
+	alignItems: { base: 'baseline', md: undefined },
+	gap: { base: '4', md: undefined },
+	minWidth: '0',
 });
 
 const copyFieldPairNotesClass = css({
-	display: { base: "flex", md: "contents" },
-	flexDir: { base: "column", md: undefined },
-	alignItems: { base: "stretch", md: undefined },
-	gap: { base: "1", md: undefined },
-	minWidth: "0",
+	display: { base: 'flex', md: 'contents' },
+	flexDir: { base: 'column', md: undefined },
+	alignItems: { base: 'stretch', md: undefined },
+	gap: { base: '1', md: undefined },
+	minWidth: '0',
 });
 
 const copyMobileLabelClass = css({
-	display: { base: "block", md: "none" },
-	fontSize: "xs",
-	fontWeight: "medium",
-	color: "foregroundMuted",
-	textTransform: "uppercase",
-	letterSpacing: "0.05em",
-	flexShrink: "0",
+	display: { base: 'block', md: 'none' },
+	fontSize: 'xs',
+	fontWeight: 'medium',
+	color: 'foregroundMuted',
+	textTransform: 'uppercase',
+	letterSpacing: '0.05em',
+	flexShrink: '0',
 });
 
 const copyCellMutedClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	fontVariantNumeric: "tabular-nums",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	fontVariantNumeric: 'tabular-nums',
 });
 
 const copyCellClass = css({
-	fontSize: "sm",
-	color: "foreground",
-	fontVariantNumeric: "tabular-nums",
+	fontSize: 'sm',
+	color: 'foreground',
+	fontVariantNumeric: 'tabular-nums',
 });
 
 const copyNotesCellClass = css({
-	fontSize: "sm",
-	color: "foregroundMuted",
-	minWidth: "0",
-	overflow: { base: "visible", md: "hidden" },
-	textOverflow: { base: "clip", md: "ellipsis" },
-	whiteSpace: { base: "normal", md: "nowrap" },
-	wordBreak: "break-word",
+	fontSize: 'sm',
+	color: 'foregroundMuted',
+	minWidth: '0',
+	overflow: { base: 'visible', md: 'hidden' },
+	textOverflow: { base: 'clip', md: 'ellipsis' },
+	whiteSpace: { base: 'normal', md: 'nowrap' },
+	wordBreak: 'break-word',
 });
 
 const copyActionsCellClass = css({
-	display: "flex",
-	flexDir: { base: "column", md: "row" },
-	flexWrap: "wrap",
-	gap: "2",
-	width: { base: "100%", md: "auto" },
-	alignSelf: { base: "stretch", md: "auto" },
-	justifyContent: { base: "stretch", md: "flex-end" },
-	"& button": {
-		width: { base: "100%", md: "auto" },
+	display: 'flex',
+	flexDir: { base: 'column', md: 'row' },
+	flexWrap: 'wrap',
+	gap: '2',
+	width: { base: '100%', md: 'auto' },
+	alignSelf: { base: 'stretch', md: 'auto' },
+	justifyContent: { base: 'stretch', md: 'flex-end' },
+	'& button': {
+		width: { base: '100%', md: 'auto' },
 	},
 });
 
 const copyClassClass = css({
-	fontWeight: "medium",
-	color: "foreground",
+	fontWeight: 'medium',
+	color: 'foreground',
 });
 
 const addCopyFormInnerClass = css({
-	display: "flex",
-	flexDir: "column",
-	gap: "3",
+	display: 'flex',
+	flexDir: 'column',
+	gap: '3',
 });
 
 const formRowClass = css({
-	display: "flex",
-	flexDir: { base: "column", sm: "row" },
-	gap: "3",
-	alignItems: { base: "stretch", sm: "flex-end" },
-	flexWrap: "wrap",
+	display: 'flex',
+	flexDir: { base: 'column', sm: 'row' },
+	gap: '3',
+	alignItems: { base: 'stretch', sm: 'flex-end' },
+	flexWrap: 'wrap',
 });
 
-const fieldClass = css({ flex: "1", minWidth: "120px" });
+const fieldClass = css({ flex: '1', minWidth: '120px' });
 
 const errorBannerClass = css({
-	bg: "rgba(192,57,43,0.08)",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "rgba(192,57,43,0.2)",
-	borderRadius: "btn",
-	px: "3",
-	py: "2",
-	fontSize: "sm",
-	color: "danger",
-	mb: "3",
+	bg: 'rgba(192,57,43,0.08)',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	borderColor: 'rgba(192,57,43,0.2)',
+	borderRadius: 'btn',
+	px: '3',
+	py: '2',
+	fontSize: 'sm',
+	color: 'danger',
+	mb: '3',
 });
 
 const stateTextClass = css({
-	color: "foregroundMuted",
-	fontSize: "sm",
-	p: "6",
+	color: 'foregroundMuted',
+	fontSize: 'sm',
+	p: '6',
 });
 
 function pad2(n: number) {
-	return String(n).padStart(2, "0");
+	return String(n).padStart(2, '0');
 }
 
 function toDatetimeLocalValue(d: Date) {
@@ -414,7 +414,7 @@ function isoToDatetimeLocal(iso: string) {
 function dateOnlyToUtcIso(dateStr: string): string {
 	const t = dateStr.trim();
 	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
-	if (!m) throw new Error("Invalid date");
+	if (!m) throw new Error('Invalid date');
 	const y = Number(m[1]);
 	const mo = Number(m[2]);
 	const d = Number(m[3]);
@@ -422,123 +422,123 @@ function dateOnlyToUtcIso(dateStr: string): string {
 }
 
 const textInputClass = css({
-	display: "block",
-	width: "100%",
-	borderWidth: "1px",
-	borderStyle: "solid",
-	borderColor: "border",
-	bg: "background",
-	color: "foreground",
-	borderRadius: "btn",
-	px: "3",
-	py: "2",
-	fontSize: "sm",
-	outline: "none",
-	fontFamily: "sans",
-	_focus: { borderColor: "accent" },
-	_placeholder: { color: "foregroundMuted" },
+	display: 'block',
+	width: '100%',
+	borderWidth: '1px',
+	borderStyle: 'solid',
+	borderColor: 'border',
+	bg: 'background',
+	color: 'foreground',
+	borderRadius: 'btn',
+	px: '3',
+	py: '2',
+	fontSize: 'sm',
+	outline: 'none',
+	fontFamily: 'sans',
+	_focus: { borderColor: 'accent' },
+	_placeholder: { color: 'foregroundMuted' },
 });
 
 /** `type="date"` / `type="time"`: 16px avoids iOS zoom; native pickers stay usable on mobile. */
 const nativeDateOrTimeInputClass = cx(
 	textInputClass,
 	css({
-		fontSize: "md",
-		lineHeight: "1.25",
+		fontSize: 'md',
+		lineHeight: '1.25',
 	}),
 );
 
 const overlayClass = css({
-	position: "fixed",
+	position: 'fixed',
 	inset: 0,
-	bg: "rgba(0,0,0,0.45)",
+	bg: 'rgba(0,0,0,0.45)',
 	zIndex: 100,
 });
 
 const modalPanelClass = css({
-	position: "fixed",
-	bg: "surface",
+	position: 'fixed',
+	bg: 'surface',
 	zIndex: 101,
-	display: "flex",
-	flexDir: "column",
-	overflow: "hidden",
-	p: "0",
+	display: 'flex',
+	flexDir: 'column',
+	overflow: 'hidden',
+	p: '0',
 	/** Mobile: full height, top-aligned. sm+: centered in overlay. */
-	top: { base: "0", sm: "50%" },
-	bottom: { base: "0", sm: "auto" },
-	left: { base: "0", sm: "50%" },
-	right: { base: "0", sm: "auto" },
-	transform: { base: "none", sm: "translate(-50%, -50%)" },
-	width: { base: "100%", sm: "calc(100% - 2rem)" },
-	maxWidth: { base: "100%", sm: "420px" },
+	top: { base: '0', sm: '50%' },
+	bottom: { base: '0', sm: 'auto' },
+	left: { base: '0', sm: '50%' },
+	right: { base: '0', sm: 'auto' },
+	transform: { base: 'none', sm: 'translate(-50%, -50%)' },
+	width: { base: '100%', sm: 'calc(100% - 2rem)' },
+	maxWidth: { base: '100%', sm: '420px' },
 	maxHeight: {
-		sm: "min(90dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem))",
+		sm: 'min(90dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem))',
 	},
-	borderStyle: "solid",
-	borderColor: "border",
-	borderRadius: { base: "0", sm: "card" },
-	borderWidth: { base: "0", sm: "1px" },
-	boxShadow: { base: "none", sm: "md" },
+	borderStyle: 'solid',
+	borderColor: 'border',
+	borderRadius: { base: '0', sm: 'card' },
+	borderWidth: { base: '0', sm: '1px' },
+	boxShadow: { base: 'none', sm: 'md' },
 });
 
 /** Wider copy modals — keep full width on small screens. */
 const modalPanelMax520Class = css({
-	maxWidth: { base: "100%", sm: "520px" },
+	maxWidth: { base: '100%', sm: '520px' },
 });
 
 const modalPanelMax460Class = css({
-	maxWidth: { base: "100%", sm: "460px" },
+	maxWidth: { base: '100%', sm: '460px' },
 });
 
 const modalTitleClass = css({
-	fontSize: "lg",
-	fontWeight: "medium",
-	color: "foreground",
-	mb: "4",
-	mt: "0",
-	flexShrink: "0",
+	fontSize: 'lg',
+	fontWeight: 'medium',
+	color: 'foreground',
+	mb: '4',
+	mt: '0',
+	flexShrink: '0',
 	pt: {
-		base: "calc({spacing.5} + env(safe-area-inset-top, 0px))",
-		sm: "5",
+		base: 'calc({spacing.5} + env(safe-area-inset-top, 0px))',
+		sm: '5',
 	},
-	pl: "calc({spacing.5} + env(safe-area-inset-left, 0px))",
-	pr: "calc({spacing.5} + env(safe-area-inset-right, 0px))",
+	pl: 'calc({spacing.5} + env(safe-area-inset-left, 0px))',
+	pr: 'calc({spacing.5} + env(safe-area-inset-right, 0px))',
 });
 
 const modalBodyScrollClass = css({
-	flex: "1",
-	minH: "0",
-	overflowY: "auto",
-	WebkitOverflowScrolling: "touch",
-	overscrollBehavior: "contain",
-	pl: "calc({spacing.5} + env(safe-area-inset-left, 0px))",
-	pr: "calc({spacing.5} + env(safe-area-inset-right, 0px))",
-	pb: "4",
+	flex: '1',
+	minH: '0',
+	overflowY: 'auto',
+	WebkitOverflowScrolling: 'touch',
+	overscrollBehavior: 'contain',
+	pl: 'calc({spacing.5} + env(safe-area-inset-left, 0px))',
+	pr: 'calc({spacing.5} + env(safe-area-inset-right, 0px))',
+	pb: '4',
 });
 
 const modalFooterClass = css({
-	flexShrink: "0",
-	display: "flex",
-	flexDir: { base: "column-reverse", sm: "row" },
-	gap: "3",
-	justifyContent: { base: "stretch", sm: "flex-end" },
-	pt: "3",
-	pb: "calc({spacing.5} + env(safe-area-inset-bottom, 0px))",
-	pl: "calc({spacing.5} + env(safe-area-inset-left, 0px))",
-	pr: "calc({spacing.5} + env(safe-area-inset-right, 0px))",
-	borderTopWidth: "1px",
-	borderTopStyle: "solid",
-	borderTopColor: "border",
-	bg: "surface",
+	flexShrink: '0',
+	display: 'flex',
+	flexDir: { base: 'column-reverse', sm: 'row' },
+	gap: '3',
+	justifyContent: { base: 'stretch', sm: 'flex-end' },
+	pt: '3',
+	pb: 'calc({spacing.5} + env(safe-area-inset-bottom, 0px))',
+	pl: 'calc({spacing.5} + env(safe-area-inset-left, 0px))',
+	pr: 'calc({spacing.5} + env(safe-area-inset-right, 0px))',
+	borderTopWidth: '1px',
+	borderTopStyle: 'solid',
+	borderTopColor: 'border',
+	bg: 'surface',
 });
 
 const modalFormColumnClass = css({
-	display: "flex",
-	flexDir: "column",
-	flex: "1",
-	minH: "0",
-	overflow: "hidden",
-	width: "100%",
+	display: 'flex',
+	flexDir: 'column',
+	flex: '1',
+	minH: '0',
+	overflow: 'hidden',
+	width: '100%',
 });
 
 function EditionDetail() {
@@ -553,9 +553,9 @@ function EditionDetail() {
 	const [classification, setClassification] = useState<CopyClassification>(
 		CopyClassification.CIB,
 	);
-	const [notes, setNotes] = useState("");
+	const [notes, setNotes] = useState('');
 	const [sellCopyId, setSellCopyId] = useState<string | null>(null);
-	const [sellAmount, setSellAmount] = useState("");
+	const [sellAmount, setSellAmount] = useState('');
 	const [sellDateOnly, setSellDateOnly] = useState(() =>
 		toDatetimeLocalValue(new Date()).slice(0, 10),
 	);
@@ -564,12 +564,12 @@ function EditionDetail() {
 	const [editCopyId, setEditCopyId] = useState<string | null>(null);
 	const [editClassification, setEditClassification] =
 		useState<CopyClassification>(CopyClassification.CIB);
-	const [editNotes, setEditNotes] = useState("");
-	const [editOfferAmount, setEditOfferAmount] = useState("");
+	const [editNotes, setEditNotes] = useState('');
+	const [editOfferAmount, setEditOfferAmount] = useState('');
 	const [editCopyError, setEditCopyError] = useState<string | null>(null);
 	const [addCopyModalOpen, setAddCopyModalOpen] = useState(false);
-	const [addCopyOfferAmount, setAddCopyOfferAmount] = useState("");
-	const [addCopyPurchaseAmount, setAddCopyPurchaseAmount] = useState("");
+	const [addCopyOfferAmount, setAddCopyOfferAmount] = useState('');
+	const [addCopyPurchaseAmount, setAddCopyPurchaseAmount] = useState('');
 	const addCopyDialogPopupRef = useRef<HTMLDivElement>(null);
 	const editCopyDialogPopupRef = useRef<HTMLDivElement>(null);
 	/** Tracks classification when Edit copy opened; used to apply FMV only after user changes class. */
@@ -582,15 +582,15 @@ function EditionDetail() {
 	const editOfferSliderHydratedRef = useRef(false);
 
 	const q = useQuery({
-		queryKey: ["edition", editionId],
+		queryKey: ['edition', editionId],
 		queryFn: () => apiFetch<EditionDetailDto>(`/editions/${editionId}`),
 	});
 
 	const addCopyPricingQuery = useQuery({
-		queryKey: ["product-pricing", q.data?.priceChartingProductId] as const,
+		queryKey: ['product-pricing', q.data?.priceChartingProductId] as const,
 		queryFn: () => {
 			const sp = new URLSearchParams();
-			sp.set("productId", q.data?.priceChartingProductId ?? "");
+			sp.set('productId', q.data?.priceChartingProductId ?? '');
 			return apiFetch<PriceChartingPricingPreviewDto>(
 				`/product-pricing?${sp.toString()}`,
 			);
@@ -617,7 +617,7 @@ function EditionDetail() {
 	const addCopyOfferAmountNumeric = useMemo(() => {
 		const t = addCopyOfferAmount.trim();
 		if (!t) return null;
-		const n = Number.parseFloat(t.replace(/,/g, ""));
+		const n = Number.parseFloat(t.replace(/,/g, ''));
 		return Number.isFinite(n) ? n : null;
 	}, [addCopyOfferAmount]);
 
@@ -653,7 +653,7 @@ function EditionDetail() {
 	const editOfferAmountNumeric = useMemo(() => {
 		const t = editOfferAmount.trim();
 		if (!t) return null;
-		const n = Number.parseFloat(t.replace(/,/g, ""));
+		const n = Number.parseFloat(t.replace(/,/g, ''));
 		return Number.isFinite(n) ? n : null;
 	}, [editOfferAmount]);
 
@@ -696,6 +696,7 @@ function EditionDetail() {
 		editCopyOfferSliderCents?.minC,
 		editCopyOfferSliderCents?.maxC,
 		editOfferAmountNumeric,
+		editCopyOfferSliderCents,
 	]);
 
 	/** Opened with no offer and no snapshot FMV: when slider becomes available, match input to slider once. */
@@ -728,34 +729,34 @@ function EditionDetail() {
 	const refresh = useMutation({
 		mutationFn: () =>
 			apiFetch<EditionDetailDto>(`/editions/${editionId}/refresh-market`, {
-				method: "POST",
+				method: 'POST',
 			}),
 		onSuccess: (data) => {
 			setRefreshError(null);
-			queryClient.setQueryData(["edition", editionId], data);
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			queryClient.setQueryData(['edition', editionId], data);
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 		},
 		onError: (e) => {
-			setRefreshError(e instanceof Error ? e.message : "Refresh failed");
+			setRefreshError(e instanceof Error ? e.message : 'Refresh failed');
 		},
 	});
 
 	const fetchCoverArt = useMutation({
 		mutationFn: (force: boolean) =>
 			apiFetchPost<FetchEditionCoverResponseDto>(
-				`/editions/${editionId}/fetch-cover${force ? "?force=true" : ""}`,
+				`/editions/${editionId}/fetch-cover${force ? '?force=true' : ''}`,
 			),
 		onSuccess: (data) => {
 			setFetchCoverError(null);
 			const { coverAlreadyStored: _skipped, ...edition } = data;
 			void _skipped;
-			queryClient.setQueryData(["edition", editionId], edition);
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
+			queryClient.setQueryData(['edition', editionId], edition);
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
 		},
 		onError: (e) => {
 			setFetchCoverError(
-				e instanceof Error ? e.message : "Could not fetch cover",
+				e instanceof Error ? e.message : 'Could not fetch cover',
 			);
 		},
 	});
@@ -763,44 +764,44 @@ function EditionDetail() {
 	const addCopy = useMutation({
 		mutationFn: () =>
 			apiFetch<OwnedCopyDto>(`/editions/${editionId}/copies`, {
-				method: "POST",
+				method: 'POST',
 				body: JSON.stringify({
 					copyClassification: classification,
 					classificationNotes: notes.trim() || undefined,
 					...(addCopyPurchaseAmount.trim()
 						? {
 								purchaseAmount: addCopyPurchaseAmount.trim(),
-								purchaseCurrency: "USD",
+								purchaseCurrency: 'USD',
 							}
 						: {}),
 					...(addCopyOfferAmount.trim()
 						? {
 								offerAmount: addCopyOfferAmount.trim(),
-								offerCurrency: "USD",
+								offerCurrency: 'USD',
 							}
 						: {}),
 				}),
 			}),
 		onSuccess: () => {
 			setCopyError(null);
-			setNotes("");
-			setAddCopyOfferAmount("");
-			setAddCopyPurchaseAmount("");
+			setNotes('');
+			setAddCopyOfferAmount('');
+			setAddCopyPurchaseAmount('');
 			setAddCopyModalOpen(false);
 			void q.refetch();
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 		},
 		onError: (e) => {
-			setCopyError(e instanceof Error ? e.message : "Could not add copy");
+			setCopyError(e instanceof Error ? e.message : 'Could not add copy');
 		},
 	});
 
 	function closeAddCopyModal() {
 		setAddCopyModalOpen(false);
 		setCopyError(null);
-		setAddCopyOfferAmount("");
-		setAddCopyPurchaseAmount("");
+		setAddCopyOfferAmount('');
+		setAddCopyPurchaseAmount('');
 	}
 
 	function openSellModal(c: OwnedCopyDto) {
@@ -842,7 +843,7 @@ function EditionDetail() {
 		setEditCopyId(c.id);
 		setEditClassification(c.copyClassification);
 		prevEditClassificationForOfferRef.current = c.copyClassification;
-		setEditNotes(c.classificationNotes ?? "");
+		setEditNotes(c.classificationNotes ?? '');
 
 		const edition = q.data;
 		let initialOffer = formatStoredOfferForInput(c.offerAmount);
@@ -871,7 +872,7 @@ function EditionDetail() {
 	const updateCopyMeta = useMutation({
 		mutationFn: async () => {
 			const id = editCopyId;
-			if (!id) throw new Error("No copy selected");
+			if (!id) throw new Error('No copy selected');
 			const trimmedOffer = editOfferAmount.trim();
 			const body: Record<string, unknown> = {
 				copyClassification: editClassification,
@@ -879,25 +880,25 @@ function EditionDetail() {
 			};
 			if (trimmedOffer) {
 				body.offerAmount = trimmedOffer;
-				body.offerCurrency = "USD";
+				body.offerCurrency = 'USD';
 			} else {
 				body.offerAmount = null;
 				body.offerCurrency = null;
 			}
 			return apiFetch<OwnedCopyDto>(`/copies/${id}`, {
-				method: "PATCH",
+				method: 'PATCH',
 				body: JSON.stringify(body),
 			});
 		},
 		onSuccess: () => {
 			closeEditCopyModal();
 			void q.refetch();
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 		},
 		onError: (e) => {
 			setEditCopyError(
-				e instanceof Error ? e.message : "Could not update copy",
+				e instanceof Error ? e.message : 'Could not update copy',
 			);
 		},
 	});
@@ -905,20 +906,20 @@ function EditionDetail() {
 	const markSold = useMutation({
 		mutationFn: async () => {
 			const id = sellCopyId;
-			if (!id) throw new Error("No copy selected");
+			if (!id) throw new Error('No copy selected');
 			const amt = sellAmount.trim();
-			if (!amt) throw new Error("Enter the sale amount");
+			if (!amt) throw new Error('Enter the sale amount');
 			let soldAtIso: string;
 			try {
 				soldAtIso = dateOnlyToUtcIso(sellDateOnly);
 			} catch {
-				throw new Error("Invalid sale date");
+				throw new Error('Invalid sale date');
 			}
 			return apiFetch<OwnedCopyDto>(`/copies/${id}`, {
-				method: "PATCH",
+				method: 'PATCH',
 				body: JSON.stringify({
 					soldAmount: amt,
-					soldCurrency: "USD",
+					soldCurrency: 'USD',
 					soldAt: soldAtIso,
 				}),
 			});
@@ -927,27 +928,27 @@ function EditionDetail() {
 			closeSellModal();
 			queueMicrotask(() => playSaleSavedConfetti());
 			void q.refetch();
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 		},
 		onError: (e) => {
-			setSellError(e instanceof Error ? e.message : "Could not save sale");
+			setSellError(e instanceof Error ? e.message : 'Could not save sale');
 		},
 	});
 
 	const deleteGame = useMutation({
 		mutationFn: () =>
-			apiFetch<void>(`/editions/${editionId}`, { method: "DELETE" }),
+			apiFetch<void>(`/editions/${editionId}`, { method: 'DELETE' }),
 		onSuccess: () => {
 			setDeleteModalOpen(false);
 			setDeleteError(null);
-			void queryClient.removeQueries({ queryKey: ["edition", editionId] });
-			void queryClient.invalidateQueries({ queryKey: ["editions"] });
-			void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-			void navigate({ to: "/inventory" });
+			void queryClient.removeQueries({ queryKey: ['edition', editionId] });
+			void queryClient.invalidateQueries({ queryKey: ['editions'] });
+			void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+			void navigate({ to: '/inventory' });
 		},
 		onError: (e) => {
-			setDeleteError(e instanceof Error ? e.message : "Could not delete game");
+			setDeleteError(e instanceof Error ? e.message : 'Could not delete game');
 		},
 	});
 
@@ -970,7 +971,7 @@ function EditionDetail() {
 	const sellAmountNumeric = useMemo(() => {
 		const t = sellAmount.trim();
 		if (!t) return null;
-		const n = Number.parseFloat(t.replace(/,/g, ""));
+		const n = Number.parseFloat(t.replace(/,/g, ''));
 		return Number.isFinite(n) ? n : null;
 	}, [sellAmount]);
 
@@ -979,12 +980,12 @@ function EditionDetail() {
 		const edition = q.data;
 		if (!c || !edition) return null;
 		if (c.soldAt != null && c.soldAmount?.trim()) {
-			const sold = Number.parseFloat(c.soldAmount.replace(/,/g, ""));
+			const sold = Number.parseFloat(c.soldAmount.replace(/,/g, ''));
 			if (Number.isFinite(sold) && sold > 0) return sold;
 		}
 		const offerTrim = c.offerAmount?.trim();
 		if (offerTrim) {
-			const o = Number.parseFloat(offerTrim.replace(/,/g, ""));
+			const o = Number.parseFloat(offerTrim.replace(/,/g, ''));
 			if (Number.isFinite(o) && o > 0) return o;
 		}
 		if (edition.snapshot) {
@@ -1035,8 +1036,8 @@ function EditionDetail() {
 	if (q.isError || !q.data) {
 		return (
 			<div className={pageClass}>
-				<p className={css({ color: "danger", mb: "3" })}>
-					{q.error instanceof Error ? q.error.message : "Edition not found"}
+				<p className={css({ color: 'danger', mb: '3' })}>
+					{q.error instanceof Error ? q.error.message : 'Edition not found'}
 				</p>
 				<Link to="/inventory" className={backLinkClass}>
 					← Back to inventory
@@ -1062,76 +1063,76 @@ function EditionDetail() {
 			<div className={pageHeaderClass}>
 				<div
 					className={css({
-						display: "flex",
-						flexDir: { base: "column", md: "row" },
-						gap: "6",
-						alignItems: { base: "stretch", md: "flex-start" },
-						mb: "2",
+						display: 'flex',
+						flexDir: { base: 'column', md: 'row' },
+						gap: '6',
+						alignItems: { base: 'stretch', md: 'flex-start' },
+						mb: '2',
 					})}
 				>
 					<div
 						className={css({
-							flexShrink: "0",
-							width: { base: "100%", md: "160px" },
-							maxW: "100%",
+							flexShrink: '0',
+							width: { base: '100%', md: '160px' },
+							maxW: '100%',
 						})}
 					>
 						{editionDetailCoverSrc(e) ? (
 							<img
-								src={editionDetailCoverSrc(e) ?? ""}
+								src={editionDetailCoverSrc(e) ?? ''}
 								alt={e.title}
 								className={css({
-									width: "100%",
-									maxH: "240px",
-									objectFit: "contain",
-									borderRadius: "card",
-									borderWidth: "1px",
-									borderStyle: "solid",
-									borderColor: "border",
-									bg: "surface",
+									width: '100%',
+									maxH: '240px',
+									objectFit: 'contain',
+									borderRadius: 'card',
+									borderWidth: '1px',
+									borderStyle: 'solid',
+									borderColor: 'border',
+									bg: 'surface',
 								})}
 							/>
 						) : (
 							<div
 								className={css({
-									width: "100%",
-									minH: "120px",
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									borderRadius: "card",
-									borderWidth: "1px",
-									borderStyle: "dashed",
-									borderColor: "border",
-									color: "foregroundMuted",
-									fontSize: "sm",
+									width: '100%',
+									minH: '120px',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									borderRadius: 'card',
+									borderWidth: '1px',
+									borderStyle: 'dashed',
+									borderColor: 'border',
+									color: 'foregroundMuted',
+									fontSize: 'sm',
 								})}
 							>
 								No cover yet
 							</div>
 						)}
 					</div>
-					<div className={css({ flex: "1", minW: "0" })}>
+					<div className={css({ flex: '1', minW: '0' })}>
 						<div
 							className={css({
-								display: "flex",
-								flexDir: { base: "column", sm: "row" },
-								justifyContent: { base: "flex-start", sm: "space-between" },
-								alignItems: { base: "flex-start", sm: "flex-start" },
-								gap: "4",
-								flexWrap: "wrap",
-								mb: "2",
+								display: 'flex',
+								flexDir: { base: 'column', sm: 'row' },
+								justifyContent: { base: 'flex-start', sm: 'space-between' },
+								alignItems: { base: 'flex-start', sm: 'flex-start' },
+								gap: '4',
+								flexWrap: 'wrap',
+								mb: '2',
 							})}
 						>
-							<h1 className={cx(pageTitleClass, css({ mb: "0" }))}>
+							<h1 className={cx(pageTitleClass, css({ mb: '0' }))}>
 								{e.title}
 							</h1>
 							<div
 								className={css({
-									display: "flex",
-									flexWrap: "wrap",
-									gap: "2",
-									alignItems: "center",
+									display: 'flex',
+									flexWrap: 'wrap',
+									gap: '2',
+									alignItems: 'center',
 								})}
 							>
 								{e.priceChartingProductId ? (
@@ -1146,10 +1147,10 @@ function EditionDetail() {
 										}}
 									>
 										{fetchCoverArt.isPending
-											? "Cover…"
+											? 'Cover…'
 											: e.hasCover
-												? "Refresh cover"
-												: "Fetch cover"}
+												? 'Refresh cover'
+												: 'Fetch cover'}
 									</Button>
 								) : null}
 								<Button
@@ -1166,15 +1167,15 @@ function EditionDetail() {
 						</div>
 						<div
 							className={css({
-								display: "flex",
-								flexDir: "column",
-								alignItems: "flex-start",
-								gap: "1",
+								display: 'flex',
+								flexDir: 'column',
+								alignItems: 'flex-start',
+								gap: '1',
 							})}
 						>
 							<div className={metaRowClass}>
 								<Badge variant="default">{editionConsoleBadge(e)}</Badge>
-								{e.upc != null && e.upc !== "" ? (
+								{e.upc != null && e.upc !== '' ? (
 									<span className={metaTextClass}>UPC {e.upc}</span>
 								) : (
 									<span className={metaTextClass}>No UPC</span>
@@ -1195,7 +1196,7 @@ function EditionDetail() {
 							) : null}
 						</div>
 						{fetchCoverError && (
-							<p className={css({ fontSize: "sm", color: "danger", mt: "2" })}>
+							<p className={css({ fontSize: 'sm', color: 'danger', mt: '2' })}>
 								{fetchCoverError}
 							</p>
 						)}
@@ -1217,7 +1218,7 @@ function EditionDetail() {
 								refresh.mutate();
 							}}
 						>
-							{refresh.isPending ? "Refreshing…" : "Refresh"}
+							{refresh.isPending ? 'Refreshing…' : 'Refresh'}
 						</Button>
 					</div>
 					<div className={cardBody}>
@@ -1248,9 +1249,9 @@ function EditionDetail() {
 											<dt className={dtClass}>Sales vol.</dt>
 											<dd
 												className={css({
-													margin: "0",
-													fontSize: "sm",
-													color: "foreground",
+													margin: '0',
+													fontSize: 'sm',
+													color: 'foreground',
 												})}
 											>
 												{snap.salesVolume.toLocaleString()}
@@ -1268,10 +1269,10 @@ function EditionDetail() {
 					<div className={cardHeader}>
 						<span
 							className={css({
-								display: "flex",
-								alignItems: "center",
-								gap: "2",
-								flexWrap: "wrap",
+								display: 'flex',
+								alignItems: 'center',
+								gap: '2',
+								flexWrap: 'wrap',
 							})}
 						>
 							<span className={cardTitleClass}>Your copies</span>
@@ -1285,8 +1286,8 @@ function EditionDetail() {
 							size="sm"
 							onClick={() => {
 								setCopyError(null);
-								setAddCopyOfferAmount("");
-								setAddCopyPurchaseAmount("");
+								setAddCopyOfferAmount('');
+								setAddCopyPurchaseAmount('');
 								setAddCopyModalOpen(true);
 							}}
 						>
@@ -1296,10 +1297,10 @@ function EditionDetail() {
 					<div className={cardBody}>
 						{e.copies.length === 0 ? (
 							<p className={emptyTextClass}>
-								No copies logged yet. Use{" "}
-								<strong className={css({ color: "foreground" })}>
+								No copies logged yet. Use{' '}
+								<strong className={css({ color: 'foreground' })}>
 									Add copy
-								</strong>{" "}
+								</strong>{' '}
 								above to log one.
 							</p>
 						) : (
@@ -1308,8 +1309,8 @@ function EditionDetail() {
 									<div className={copiesHeaderRowClass}>
 										<span>Status</span>
 										<span>Class</span>
-										<span className={css({ textAlign: "right" })}>Paid</span>
-										<span className={css({ textAlign: "right" })}>Offer</span>
+										<span className={css({ textAlign: 'right' })}>Paid</span>
+										<span className={css({ textAlign: 'right' })}>Offer</span>
 										<span>Sale</span>
 										<span>Notes</span>
 										<span />
@@ -1326,13 +1327,13 @@ function EditionDetail() {
 												<span className={copyMobileLabelClass}>Status</span>
 												<span
 													className={css({
-														textAlign: { base: "right", md: "left" },
+														textAlign: { base: 'right', md: 'left' },
 													})}
 												>
 													<Badge
-														variant={c.soldAt != null ? "green" : "purple"}
+														variant={c.soldAt != null ? 'green' : 'purple'}
 													>
-														{c.soldAt != null ? "Sold" : "Available"}
+														{c.soldAt != null ? 'Sold' : 'Available'}
 													</Badge>
 												</span>
 											</div>
@@ -1342,16 +1343,16 @@ function EditionDetail() {
 													className={cx(
 														copyClassClass,
 														css({
-															textAlign: { base: "right", md: "left" },
+															textAlign: { base: 'right', md: 'left' },
 														}),
 													)}
 												>
-													{c.copyClassification.replace(/_/g, " ")}
+													{c.copyClassification.replace(/_/g, ' ')}
 												</span>
 											</div>
 											<div className={copyFieldPairClass}>
 												<span className={copyMobileLabelClass}>Paid</span>
-												<span className={css({ textAlign: "right" })}>
+												<span className={css({ textAlign: 'right' })}>
 													{c.purchaseAmount != null ? (
 														<span className={copyCellClass}>
 															{formatMoneyAmount(c.purchaseAmount)}
@@ -1363,7 +1364,7 @@ function EditionDetail() {
 											</div>
 											<div className={copyFieldPairClass}>
 												<span className={copyMobileLabelClass}>Offer</span>
-												<span className={css({ textAlign: "right" })}>
+												<span className={css({ textAlign: 'right' })}>
 													{c.offerAmount != null ? (
 														<span className={copyCellClass}>
 															{formatMoneyAmount(c.offerAmount)}
@@ -1377,20 +1378,20 @@ function EditionDetail() {
 												<span className={copyMobileLabelClass}>Sale</span>
 												<div
 													className={css({
-														textAlign: { base: "right", md: "left" },
-														minWidth: "0",
+														textAlign: { base: 'right', md: 'left' },
+														minWidth: '0',
 													})}
 												>
 													{c.soldAt != null ? (
 														<span
 															className={css({
-																fontSize: "sm",
-																color: "accentGreen",
-																fontWeight: "medium",
+																fontSize: 'sm',
+																color: 'accentGreen',
+																fontWeight: 'medium',
 															})}
 														>
-															{formatMoneyAmount(c.soldAmount ?? "0")}{" "}
-															· {new Date(c.soldAt).toLocaleDateString()}
+															{formatMoneyAmount(c.soldAmount ?? '0')} ·{' '}
+															{new Date(c.soldAt).toLocaleDateString()}
 														</span>
 													) : (
 														<span className={copyCellMutedClass}>—</span>
@@ -1409,7 +1410,7 @@ function EditionDetail() {
 												>
 													{c.classificationNotes?.trim()
 														? c.classificationNotes
-														: "—"}
+														: '—'}
 												</div>
 											</div>
 											<div className={copyActionsCellClass}>
@@ -1427,7 +1428,7 @@ function EditionDetail() {
 													size="sm"
 													onClick={() => openSellModal(c)}
 												>
-													{c.soldAt != null ? "Edit sale" : "Mark sold"}
+													{c.soldAt != null ? 'Edit sale' : 'Mark sold'}
 												</Button>
 											</div>
 										</div>
@@ -1464,196 +1465,196 @@ function EditionDetail() {
 								Add copy
 								<span
 									className={css({
-										display: "block",
-										fontSize: "xs",
-										fontWeight: "normal",
-										color: "foregroundMuted",
-										mt: "1",
+										display: 'block',
+										fontSize: 'xs',
+										fontWeight: 'normal',
+										color: 'foregroundMuted',
+										mt: '1',
 									})}
 								>
 									{e.title}
 								</span>
 							</Dialog.Title>
 							<div className={cx(addCopyFormInnerClass, modalBodyScrollClass)}>
-								{copyError && (
-									<p className={errorBannerClass}>{copyError}</p>
-								)}
-							<div className={formRowClass}>
-								<div className={fieldClass}>
-									<Label htmlFor="add-copy-classification">
-										Classification
-									</Label>
-									<Select
-										id="add-copy-classification"
-										value={classification}
-										onValueChange={(v) =>
-											setClassification(v as CopyClassification)
-										}
-										items={CLASSIFICATION_OPTIONS.map((x) => ({
-											value: x,
-											label: x.replace(/_/g, " "),
-										}))}
-										portalContainer={addCopyDialogPopupRef}
-									/>
+								{copyError && <p className={errorBannerClass}>{copyError}</p>}
+								<div className={formRowClass}>
+									<div className={fieldClass}>
+										<Label htmlFor="add-copy-classification">
+											Classification
+										</Label>
+										<Select
+											id="add-copy-classification"
+											value={classification}
+											onValueChange={(v) =>
+												setClassification(v as CopyClassification)
+											}
+											items={CLASSIFICATION_OPTIONS.map((x) => ({
+												value: x,
+												label: x.replace(/_/g, ' '),
+											}))}
+											portalContainer={addCopyDialogPopupRef}
+										/>
+									</div>
+									<div className={css({ flex: '2', minWidth: '120px' })}>
+										<Label htmlFor="add-copy-notes">Notes (optional)</Label>
+										<input
+											id="add-copy-notes"
+											value={notes}
+											onChange={(ev) => setNotes(ev.target.value)}
+											placeholder="e.g. mild box wear"
+											className={textInputClass}
+										/>
+									</div>
 								</div>
-								<div className={css({ flex: "2", minWidth: "120px" })}>
-									<Label htmlFor="add-copy-notes">Notes (optional)</Label>
-									<input
-										id="add-copy-notes"
-										value={notes}
-										onChange={(ev) => setNotes(ev.target.value)}
-										placeholder="e.g. mild box wear"
-										className={textInputClass}
-									/>
-								</div>
-							</div>
 
-							{(e.snapshot || e.priceChartingProductId) && (
-								<div className={formGroupClass} aria-live="polite">
-									<span
-										className={css({
-											fontSize: "sm",
-											fontWeight: "medium",
-											color: "foreground",
-										})}
-									>
-										PriceCharting (FMV)
-									</span>
-									{e.priceChartingProductId &&
-										addCopyPricingQuery.isFetching &&
-										!addCopyEffectivePricing && (
-											<p
-												className={css({
-													fontSize: "sm",
-													color: "foregroundMuted",
-													mb: "0",
-												})}
-											>
-												Loading prices…
-											</p>
-										)}
-									{e.priceChartingProductId &&
-										addCopyPricingQuery.isError &&
-										!addCopyEffectivePricing && (
-											<p
-												className={css({
-													fontSize: "sm",
-													color: "danger",
-													mb: "0",
-												})}
-											>
-												Could not load prices (check API token / network).
-											</p>
-										)}
-									{addCopyEffectivePricing && (
-										<>
-											{(addCopyEffectivePricing.productName ||
-												addCopyEffectivePricing.consoleName) && (
+								{(e.snapshot || e.priceChartingProductId) && (
+									<div className={formGroupClass} aria-live="polite">
+										<span
+											className={css({
+												fontSize: 'sm',
+												fontWeight: 'medium',
+												color: 'foreground',
+											})}
+										>
+											PriceCharting (FMV)
+										</span>
+										{e.priceChartingProductId &&
+											addCopyPricingQuery.isFetching &&
+											!addCopyEffectivePricing && (
 												<p
 													className={css({
-														fontSize: "xs",
-														color: "foregroundMuted",
-														m: "0",
+														fontSize: 'sm',
+														color: 'foregroundMuted',
+														mb: '0',
 													})}
 												>
-													{addCopyEffectivePricing.productName}
-													{addCopyEffectivePricing.consoleName && (
-														<> · {addCopyEffectivePricing.consoleName}</>
-													)}
+													Loading prices…
 												</p>
 											)}
-											<dl className={priceDlClass}>
-												<dt className={priceDtClass}>Loose</dt>
-												<dd className={priceDdClass}>
-													{formatPcCents(addCopyEffectivePricing.loosePrice)}
-												</dd>
-												<dt className={priceDtClass}>CIB</dt>
-												<dd className={priceDdClass}>
-													{formatPcCents(addCopyEffectivePricing.cibPrice)}
-												</dd>
-												<dt className={priceDtClass}>New</dt>
-												<dd className={priceDdClass}>
-													{formatPcCents(addCopyEffectivePricing.newPrice)}
-												</dd>
-												<dt className={priceDtClass}>Graded</dt>
-												<dd className={priceDdClass}>
-													{formatPcCents(addCopyEffectivePricing.gradedPrice)}
-												</dd>
-												{addCopyEffectivePricing.salesVolume != null && (
-													<>
-														<dt className={priceDtClass}>Sales vol.</dt>
-														<dd className={priceDdClass}>
-															{addCopyEffectivePricing.salesVolume.toLocaleString()}
-														</dd>
-													</>
+										{e.priceChartingProductId &&
+											addCopyPricingQuery.isError &&
+											!addCopyEffectivePricing && (
+												<p
+													className={css({
+														fontSize: 'sm',
+														color: 'danger',
+														mb: '0',
+													})}
+												>
+													Could not load prices (check API token / network).
+												</p>
+											)}
+										{addCopyEffectivePricing && (
+											<>
+												{(addCopyEffectivePricing.productName ||
+													addCopyEffectivePricing.consoleName) && (
+													<p
+														className={css({
+															fontSize: 'xs',
+															color: 'foregroundMuted',
+															m: '0',
+														})}
+													>
+														{addCopyEffectivePricing.productName}
+														{addCopyEffectivePricing.consoleName && (
+															<> · {addCopyEffectivePricing.consoleName}</>
+														)}
+													</p>
 												)}
-											</dl>
-											<p className={mutedHelpClass}>
-												Asking price starts at the FMV for your selected
-												condition; use the slider or type to adjust.
-											</p>
-										</>
-									)}
-								</div>
-							)}
+												<dl className={priceDlClass}>
+													<dt className={priceDtClass}>Loose</dt>
+													<dd className={priceDdClass}>
+														{formatPcCents(addCopyEffectivePricing.loosePrice)}
+													</dd>
+													<dt className={priceDtClass}>CIB</dt>
+													<dd className={priceDdClass}>
+														{formatPcCents(addCopyEffectivePricing.cibPrice)}
+													</dd>
+													<dt className={priceDtClass}>New</dt>
+													<dd className={priceDdClass}>
+														{formatPcCents(addCopyEffectivePricing.newPrice)}
+													</dd>
+													<dt className={priceDtClass}>Graded</dt>
+													<dd className={priceDdClass}>
+														{formatPcCents(addCopyEffectivePricing.gradedPrice)}
+													</dd>
+													{addCopyEffectivePricing.salesVolume != null && (
+														<>
+															<dt className={priceDtClass}>Sales vol.</dt>
+															<dd className={priceDdClass}>
+																{addCopyEffectivePricing.salesVolume.toLocaleString()}
+															</dd>
+														</>
+													)}
+												</dl>
+												<p className={mutedHelpClass}>
+													Asking price starts at the FMV for your selected
+													condition; use the slider or type to adjust.
+												</p>
+											</>
+										)}
+									</div>
+								)}
 
-							<div className={formGroupClass}>
-								<Field label="Paid (optional)" htmlFor="add-copy-purchase">
-									<Input
-										id="add-copy-purchase"
-										type="text"
-										inputMode="decimal"
-										autoComplete="off"
-										value={addCopyPurchaseAmount}
-										onChange={(ev) => setAddCopyPurchaseAmount(ev.target.value)}
-										placeholder="0.00"
-										className={inputClass}
-									/>
-								</Field>
-
-								<Field label="Asking (optional)" htmlFor="add-copy-offer-amt">
-									<Input
-										id="add-copy-offer-amt"
-										type="text"
-										inputMode="decimal"
-										autoComplete="off"
-										value={addCopyOfferAmount}
-										onChange={(ev) => setAddCopyOfferAmount(ev.target.value)}
-										placeholder="0.00"
-										className={inputClass}
-									/>
-									{addCopyOfferSliderCents && (
-										<input
-											type="range"
-											className={css({
-												w: "100%",
-												mt: "2",
-												accentColor: "accent",
-												cursor: "pointer",
-											})}
-											min={addCopyOfferSliderCents.minC}
-											max={addCopyOfferSliderCents.maxC}
-											step={100}
-											value={addCopyOfferSliderCents.value}
-											aria-label="Adjust asking price"
+								<div className={formGroupClass}>
+									<Field label="Paid (optional)" htmlFor="add-copy-purchase">
+										<Input
+											id="add-copy-purchase"
+											type="text"
+											inputMode="decimal"
+											autoComplete="off"
+											value={addCopyPurchaseAmount}
 											onChange={(ev) =>
-												setAddCopyOfferAmount(
-													(Number(ev.target.value) / 100).toFixed(2),
-												)
+												setAddCopyPurchaseAmount(ev.target.value)
 											}
+											placeholder="0.00"
+											className={inputClass}
 										/>
-									)}
-									{addCopyShowLowOfferWarning && (
-										<output
-											className={lowOfferWarningClass}
-											htmlFor="add-copy-offer-amt"
-											aria-live="polite"
-										>
-											Prices under $5 may sell faster but earn less.
-										</output>
-									)}
-								</Field>
-							</div>
+									</Field>
+
+									<Field label="Asking (optional)" htmlFor="add-copy-offer-amt">
+										<Input
+											id="add-copy-offer-amt"
+											type="text"
+											inputMode="decimal"
+											autoComplete="off"
+											value={addCopyOfferAmount}
+											onChange={(ev) => setAddCopyOfferAmount(ev.target.value)}
+											placeholder="0.00"
+											className={inputClass}
+										/>
+										{addCopyOfferSliderCents && (
+											<input
+												type="range"
+												className={css({
+													w: '100%',
+													mt: '2',
+													accentColor: 'accent',
+													cursor: 'pointer',
+												})}
+												min={addCopyOfferSliderCents.minC}
+												max={addCopyOfferSliderCents.maxC}
+												step={100}
+												value={addCopyOfferSliderCents.value}
+												aria-label="Adjust asking price"
+												onChange={(ev) =>
+													setAddCopyOfferAmount(
+														(Number(ev.target.value) / 100).toFixed(2),
+													)
+												}
+											/>
+										)}
+										{addCopyShowLowOfferWarning && (
+											<output
+												className={lowOfferWarningClass}
+												htmlFor="add-copy-offer-amt"
+												aria-live="polite"
+											>
+												Prices under $5 may sell faster but earn less.
+											</output>
+										)}
+									</Field>
+								</div>
 							</div>
 
 							<div className={modalFooterClass}>
@@ -1670,7 +1671,7 @@ function EditionDetail() {
 									variant="primary"
 									disabled={addCopy.isPending}
 								>
-									{addCopy.isPending ? "Adding…" : "Add copy"}
+									{addCopy.isPending ? 'Adding…' : 'Add copy'}
 								</Button>
 							</div>
 						</form>
@@ -1704,11 +1705,11 @@ function EditionDetail() {
 								{editingCopy && (
 									<span
 										className={css({
-											display: "block",
-											fontSize: "xs",
-											fontWeight: "normal",
-											color: "foregroundMuted",
-											mt: "1",
+											display: 'block',
+											fontSize: 'xs',
+											fontWeight: 'normal',
+											color: 'foregroundMuted',
+											mt: '1',
 										})}
 									>
 										{e.title}
@@ -1719,9 +1720,9 @@ function EditionDetail() {
 								className={cx(
 									modalBodyScrollClass,
 									css({
-										display: "flex",
-										flexDir: "column",
-										gap: "3",
+										display: 'flex',
+										flexDir: 'column',
+										gap: '3',
 									}),
 								)}
 							>
@@ -1738,7 +1739,7 @@ function EditionDetail() {
 										}
 										items={CLASSIFICATION_OPTIONS.map((x) => ({
 											value: x,
-											label: x.replace(/_/g, " "),
+											label: x.replace(/_/g, ' '),
 										}))}
 										portalContainer={editCopyDialogPopupRef}
 									/>
@@ -1758,9 +1759,9 @@ function EditionDetail() {
 									<div className={formGroupClass} aria-live="polite">
 										<span
 											className={css({
-												fontSize: "sm",
-												fontWeight: "medium",
-												color: "foreground",
+												fontSize: 'sm',
+												fontWeight: 'medium',
+												color: 'foreground',
 											})}
 										>
 											PriceCharting (FMV)
@@ -1770,9 +1771,9 @@ function EditionDetail() {
 											!addCopyEffectivePricing && (
 												<p
 													className={css({
-														fontSize: "sm",
-														color: "foregroundMuted",
-														mb: "0",
+														fontSize: 'sm',
+														color: 'foregroundMuted',
+														mb: '0',
 													})}
 												>
 													Loading prices…
@@ -1783,9 +1784,9 @@ function EditionDetail() {
 											!addCopyEffectivePricing && (
 												<p
 													className={css({
-														fontSize: "sm",
-														color: "danger",
-														mb: "0",
+														fontSize: 'sm',
+														color: 'danger',
+														mb: '0',
 													})}
 												>
 													Could not load prices (check API token / network).
@@ -1797,9 +1798,9 @@ function EditionDetail() {
 													addCopyEffectivePricing.consoleName) && (
 													<p
 														className={css({
-															fontSize: "xs",
-															color: "foregroundMuted",
-															m: "0",
+															fontSize: 'xs',
+															color: 'foregroundMuted',
+															m: '0',
 														})}
 													>
 														{addCopyEffectivePricing.productName}
@@ -1838,10 +1839,10 @@ function EditionDetail() {
 										<input
 											type="range"
 											className={css({
-												w: "100%",
-												mt: "2",
-												accentColor: "accent",
-												cursor: "pointer",
+												w: '100%',
+												mt: '2',
+												accentColor: 'accent',
+												cursor: 'pointer',
 											})}
 											min={editCopyOfferSliderCents.minC}
 											max={editCopyOfferSliderCents.maxC}
@@ -1866,10 +1867,10 @@ function EditionDetail() {
 									)}
 									<p
 										className={css({
-											fontSize: "xs",
-											color: "foregroundMuted",
-											mt: "1",
-											mb: "0",
+											fontSize: 'xs',
+											color: 'foregroundMuted',
+											mt: '1',
+											mb: '0',
 										})}
 									>
 										Leave amount empty to remove a proposed price.
@@ -1891,7 +1892,7 @@ function EditionDetail() {
 									variant="primary"
 									disabled={updateCopyMeta.isPending}
 								>
-									{updateCopyMeta.isPending ? "Saving…" : "Save changes"}
+									{updateCopyMeta.isPending ? 'Saving…' : 'Save changes'}
 								</Button>
 							</div>
 						</form>
@@ -1917,21 +1918,21 @@ function EditionDetail() {
 							}}
 						>
 							<Dialog.Title className={modalTitleClass}>
-								{sellingCopy?.soldAt != null ? "Edit sale" : "Mark copy as sold"}
+								{sellingCopy?.soldAt != null
+									? 'Edit sale'
+									: 'Mark copy as sold'}
 							</Dialog.Title>
 							<div
 								className={cx(
 									modalBodyScrollClass,
 									css({
-										display: "flex",
-										flexDir: "column",
-										gap: "3",
+										display: 'flex',
+										flexDir: 'column',
+										gap: '3',
 									}),
 								)}
 							>
-								{sellError && (
-									<p className={errorBannerClass}>{sellError}</p>
-								)}
+								{sellError && <p className={errorBannerClass}>{sellError}</p>}
 								<div>
 									<Label htmlFor="sell-amount">Sale amount</Label>
 									<input
@@ -1947,25 +1948,25 @@ function EditionDetail() {
 									/>
 									<p
 										className={css({
-											fontSize: "xs",
-											color: "foregroundMuted",
-											mt: "1",
-											mb: "0",
+											fontSize: 'xs',
+											color: 'foregroundMuted',
+											mt: '1',
+											mb: '0',
 										})}
 									>
 										{sellingCopy?.soldAt != null
-											? "Adjust the recorded sale amount."
+											? 'Adjust the recorded sale amount.'
 											: sellSliderAnchorDollars != null
-												? "Defaults to your proposed price (FMV if unset). Use the slider for quick $1 steps."
-												: "Use the slider for quick $1 steps."}
+												? 'Defaults to your proposed price (FMV if unset). Use the slider for quick $1 steps.'
+												: 'Use the slider for quick $1 steps.'}
 									</p>
 									<input
 										type="range"
 										className={css({
-											w: "100%",
-											mt: "2",
-											accentColor: "accent",
-											cursor: "pointer",
+											w: '100%',
+											mt: '2',
+											accentColor: 'accent',
+											cursor: 'pointer',
 										})}
 										min={sellSliderDollars.minD}
 										max={sellSliderDollars.maxD}
@@ -1978,15 +1979,15 @@ function EditionDetail() {
 									/>
 									<p
 										className={css({
-											fontSize: "xs",
-											color: "foregroundMuted",
-											mt: "1",
-											mb: "0",
-											fontVariantNumeric: "tabular-nums",
+											fontSize: 'xs',
+											color: 'foregroundMuted',
+											mt: '1',
+											mb: '0',
+											fontVariantNumeric: 'tabular-nums',
 										})}
 									>
-										${sellSliderDollars.minD} – ${sellSliderDollars.maxD}{" "}
-										· step $1
+										${sellSliderDollars.minD} – ${sellSliderDollars.maxD} · step
+										$1
 									</p>
 								</div>
 								<div>
@@ -2018,7 +2019,7 @@ function EditionDetail() {
 									variant="primary"
 									disabled={markSold.isPending}
 								>
-									{markSold.isPending ? "Saving…" : "Save sale"}
+									{markSold.isPending ? 'Saving…' : 'Save sale'}
 								</Button>
 							</div>
 						</form>
@@ -2045,23 +2046,21 @@ function EditionDetail() {
 						<div className={modalBodyScrollClass}>
 							<p
 								className={css({
-									fontSize: "sm",
-									color: "foregroundMuted",
-									lineHeight: "1.5",
-									margin: "0",
-									mb: "4",
+									fontSize: 'sm',
+									color: 'foregroundMuted',
+									lineHeight: '1.5',
+									margin: '0',
+									mb: '4',
 								})}
 							>
-								This permanently removes{" "}
-								<strong className={css({ color: "foreground" })}>
+								This permanently removes{' '}
+								<strong className={css({ color: 'foreground' })}>
 									{e.title}
-								</strong>{" "}
+								</strong>{' '}
 								and all copies you logged, including sale records. The market
 								snapshot is removed too. This cannot be undone.
 							</p>
-							{deleteError && (
-								<p className={errorBannerClass}>{deleteError}</p>
-							)}
+							{deleteError && <p className={errorBannerClass}>{deleteError}</p>}
 						</div>
 						<div className={modalFooterClass}>
 							<Button
@@ -2084,7 +2083,7 @@ function EditionDetail() {
 								}}
 								disabled={deleteGame.isPending}
 							>
-								{deleteGame.isPending ? "Deleting…" : "Delete game"}
+								{deleteGame.isPending ? 'Deleting…' : 'Delete game'}
 							</Button>
 						</div>
 					</Dialog.Popup>

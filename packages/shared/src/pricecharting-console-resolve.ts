@@ -1,13 +1,13 @@
 import {
 	getPriceChartingConsoleName,
 	PRICECHARTING_CONSOLES,
-} from "./pricecharting-console-ids.js";
+} from './pricecharting-console-ids.js';
 
 /** Display label from official PriceCharting Console ID table */
 export function labelPriceChartingConsole(
 	id: string | null | undefined,
 ): string {
-	if (!id?.trim()) return "Unknown";
+	if (!id?.trim()) return 'Unknown';
 	return getPriceChartingConsoleName(id) ?? id;
 }
 
@@ -26,9 +26,9 @@ export function findBestPriceChartingConsoleIdFromRows(
 	if (matches.length === 1) return matches[0].id;
 	const ntsc = matches.find(
 		(r) =>
-			!r.name.startsWith("PAL ") &&
-			!r.name.startsWith("JP ") &&
-			!r.name.startsWith("Asian "),
+			!r.name.startsWith('PAL ') &&
+			!r.name.startsWith('JP ') &&
+			!r.name.startsWith('Asian '),
 	);
 	return ntsc?.id ?? matches[0].id;
 }
@@ -48,34 +48,34 @@ export function findBestPriceChartingConsoleIdFromApiConsoleName(
 
 /** Curated G-codes for filter shortcuts (inventory UI); full list is PRICECHARTING_CONSOLES */
 export const POPULAR_PRICECHARTING_CONSOLE_IDS: readonly string[] = [
-	"G8",
-	"G10",
-	"G54",
-	"G7585",
-	"G12",
-	"G53",
-	"G7468",
-	"G6",
-	"G7",
-	"G11",
-	"G47",
-	"G59",
-	"G3",
-	"G17",
-	"G13",
-	"G4",
-	"G1",
-	"G2",
-	"G49",
-	"G5",
-	"G39",
-	"G9",
-	"G43",
-	"G16",
-	"G15",
-	"G14",
-	"G23",
-	"G37",
-	"G20",
-	"G145",
+	'G8',
+	'G10',
+	'G54',
+	'G7585',
+	'G12',
+	'G53',
+	'G7468',
+	'G6',
+	'G7',
+	'G11',
+	'G47',
+	'G59',
+	'G3',
+	'G17',
+	'G13',
+	'G4',
+	'G1',
+	'G2',
+	'G49',
+	'G5',
+	'G39',
+	'G9',
+	'G43',
+	'G16',
+	'G15',
+	'G14',
+	'G23',
+	'G37',
+	'G20',
+	'G145',
 ];
