@@ -13,6 +13,7 @@ builder = "RAILPACK"
 buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @gettin-paid/shared build && pnpm --filter @gettin-paid/backend build"
 
 [deploy]
+preDeployCommand = ["pnpm run db:migrate"]
 startCommand = "pnpm --filter @gettin-paid/backend start"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
